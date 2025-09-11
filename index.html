@@ -109,6 +109,8 @@
             font-style: normal;
             text-transform: uppercase;
             cursor: pointer;
+            min-width: 160px;
+            text-align: center;
         }
 
         /* Elevator Screen Styles */
@@ -409,6 +411,8 @@
             text-align: center;
             font-size: 1rem;
             margin: 5px 0;
+            min-width: 160px;
+            box-sizing: border-box;
         }
 
         .user-unit {
@@ -431,12 +435,12 @@
         <h1 class="site-title">227 Parking Ave</h1>
         <div class="lobby-buttons">
             <button class="lobby-btn" id="sign-in-btn">Sign In with Google</button>
-            <button class="lobby-btn" id="sign-out-btn" style="display:none;">Sign Out</button>
-            <!-- ADD THIS: User info display -->
+            <!-- Move user info above sign-out button -->
             <div class="user-info-display" id="user-info-display" style="display: none;">
                 <div class="user-unit">Unit #<span id="user-unit-number">000</span></div>
                 <div class="user-days">Day <span id="user-days-count">0</span></div>
             </div>
+            <button class="lobby-btn" id="sign-out-btn" style="display:none;">Sign Out</button>
             <button class="lobby-btn" id="store-btn">Store</button>
         </div>
         <div class="elevator-section">
@@ -623,12 +627,18 @@
             screens.forEach(screen => {
                 screen.classList.toggle('active', screen.id === `${viewName}-screen`);
             });
+            
+            // ADD THIS: Refresh lobby data when returning to lobby
+            if (viewName === 'lobby') {
+                renderLobby();
+            }
         }
         function getDaysStayed(moveInDate) {
             const startDate = new Date(moveInDate);
             const today = new Date();
             const diffTime = Math.abs(today - startDate);
-            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return Math.max(1, days);
         }
         function getCharLimit(tenant) {
             if (!tenant) return 0;

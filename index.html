@@ -22,12 +22,40 @@
             background-color: #000;
             color: #fff;
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             height: 100vh;
             overflow: hidden;
             text-transform: uppercase;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #000;
+            border-bottom: 2px solid #fff;
+            padding: 10px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+
+        .navbar-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .navbar-auth {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        #lobby-screen {
+            padding-top: 400px;
         }
 
         .screen {
@@ -429,76 +457,56 @@
     </style>
 </head>
 <body>
-
-    <!-- All screens... -->
-    <div id="lobby-screen" class="screen active">
-        <h1 class="site-title">227 Parking Ave</h1>
-        <div class="lobby-buttons">
-            <button class="lobby-btn" id="sign-in-btn">Sign In with Google</button>
-            <!-- Move user info above sign-out button -->
-            <div class="user-info-display" id="user-info-display" style="display: none;">
-                <div class="user-unit">Unit #<span id="user-unit-number">000</span></div>
-                <div class="user-days">Day <span id="user-days-count">0</span></div>
+    <!-- Navigation Bar -->
+        <nav class="navbar">
+            <h1 class="navbar-title">227 Parking Ave</h1>
+            <div class="navbar-auth">
+                <button class="lobby-btn" id="sign-in-btn">Sign In with Google</button>
+                <div class="user-info-display" id="user-info-display" style="display: none;">
+                    <div class="user-unit">Unit #<span id="user-unit-number">000</span></div>
+                    <div class="user-days">Day <span id="user-days-count">0</span></div>
+                </div>
+                <button class="lobby-btn" id="sign-out-btn" style="display:none;">Sign Out</button>
             </div>
-            <button class="lobby-btn" id="sign-out-btn" style="display:none;">Sign Out</button>
-            <button class="lobby-btn" id="store-btn">Store</button>
-        </div>
-        <div class="elevator-section">
-             <div class="elevator-door"></div>
-            <div class="elevator-call-panel">
-                <button class="call-button" id="lobby-call-elevator-btn" data-tooltip="Call Elevator">▲</button>
-                <button class="call-button" id="lobby-call-home-btn" data-tooltip="Go to Your Unit">H</button>
-                <div class="home-unit-display" id="home-unit-display" style="display: none;">
-                    <div style="font-size: 0.8rem; text-align: center; margin-top: 10px; color: #aaa;">YOUR UNIT</div>
-                    <div style="font-size: 1.2rem; text-align: center;">#000</div>
+        </nav>
+
+        <!-- All screens... -->
+        <div id="lobby-screen" class="screen active">
+            <div class="elevator-section">
+                 <div class="elevator-door"></div>
+                <div class="elevator-call-panel">
+                    <button class="call-button" id="lobby-call-elevator-btn" data-tooltip="Call Elevator">▲</button>
+                    <button class="call-button" id="lobby-call-home-btn" data-tooltip="Go to Your Unit">H</button>
+                    <div class="home-unit-display" id="home-unit-display" style="display: none;">
+                        <div style="font-size: 0.8rem; text-align: center; margin-top: 10px; color: #aaa;">YOUR UNIT</div>
+                        <div style="font-size: 1.2rem; text-align: center;">#000</div>
+                    </div>
+                </div>
+            </div>
+            <div class="news-board">
+                <h1>Community News</h1>
+                <div class="news-content">
+                    <h2>Welcome to 227 Parking Ave!</h2>
+
+                    <p class="lobby-footer">Total Residents: <span id="total-residents">0</span></p>
+                    <p>A minimalist, social apartment. Find your unit, settle in, and get to know your neighbors.</p>
+                    <ul>
+                        <li>Rules of the Complex:</li>
+                        <li>1. Be kind, be respectful.</li>
+                        <li>2. No heavy NSFW content.</li>
+                        <li>3. Quiet hours are from 11 PM to 7 AM.</li>
+                        <li>4. Upgrades Available Soon... ** Stay tuned!</li>
+                    </ul>
+                    <p>New Floors Added: We're expanding! The complex now reaches the <span id="max-floor-display">5th</span> floor. Welcome, new tenants!</p>
+                    <p><strong>Update:</strong> The management kindly reminds tenants to keep the hallways clear of digital debris. Thank you for your cooperation.</p>
+                    <p><strong>Notice:</strong> Scheduled maintenance on the main servers will occur this Sunday at 3 AM. Expect brief interruptions.</p>
+                    <p><strong>Community Event:</strong> Join us for a virtual meet-and-greet on the roof deck (feature coming soon) next Friday!</p>
+                </div>
+                <div class="store-button-container">
+                    <button class="lobby-btn" id="store-btn">Store</button>
                 </div>
             </div>
         </div>
-        <div class="news-board">
-            <h1>Community News</h1>
-            <div class="news-content">
-                <h2>Welcome to 227 Parking Ave!</h2>
-
-                <p class="lobby-footer">Total Residents: <span id="total-residents">0</span></p>
-                <p>A minimalist, social apartment. Find your unit, settle in, and get to know your neighbors.</p>
-                <ul>
-                    <li>Rules of the Complex:</li>
-                    <li>1. Be kind, be respectful.</li>
-                    <li>2. No heavy NSFW content.</li>
-                    <li>3. Quiet hours are from 11 PM to 7 AM.</li>
-                    <li>4. Upgrades Available Soon... ** Stay tuned!</li>
-                </ul>
-                <p>New Floors Added: We're expanding! The complex now reaches the <span id="max-floor-display">5th</span> floor. Welcome, new tenants!</p>
-                <p><strong>Update:</strong> The management kindly reminds tenants to keep the hallways clear of digital debris. Thank you for your cooperation.</p>
-                <p><strong>Notice:</strong> Scheduled maintenance on the main servers will occur this Sunday at 3 AM. Expect brief interruptions.</p>
-                <p><strong>Community Event:</strong> Join us for a virtual meet-and-greet on the roof deck (feature coming soon) next Friday!</p>
-            </div>
-        </div>
-    </div>
-    <div id="elevator-screen" class="screen">
-         <h1 id="elevator-header">ELEVATOR</h1>
-         <div class="elevator-top-indicator" id="elevator-floor-display">3</div>
-         <div class="elevator-main-panel">
-            <div class="elevator-panel" id="elevator-panel"></div>
-            <div class="elevator-side-controls">
-                <button class="side-button" id="random-floor-btn">R</button>
-                <button class="side-button" id="floor-page-up" disabled>▲</button>
-                <button class="side-button" id="home-floor-btn-elevator">H</button>
-                <button class="side-button" id="floor-page-down" disabled>▼</button>
-            </div>
-        </div>
-    </div>
-    <div id="floor-screen" class="screen">
-        <div class="travel-indicator" id="travel-indicator"></div>
-        <div class="floor-hallway" id="floor-hallway"></div>
-    </div>
-    <div id="upstairs-screen" class="screen">
-         <div id="upstairs-unit-container"></div>
-         <div class="go-back-control" id="go-back-home-btn">
-             <span>CLICK DOWN TO GO BACK</span>
-             <div class="arrow"></div>
-         </div>
-    </div>
 
     <!-- Store Screen -->
     <div id="store-screen" class="screen">

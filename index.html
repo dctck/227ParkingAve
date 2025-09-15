@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>227 Parking Ave</title>
 
     <!-- Custom Fonts -->
@@ -11,6 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poor+Story&display=swap" rel="stylesheet">
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
 
     <style>
@@ -23,8 +27,10 @@
             color: #fff;
             margin: 0;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             text-transform: uppercase;
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .navbar {
@@ -34,34 +40,36 @@
             width: 100%;
             background-color: #000;
             border-bottom: 2px solid #fff;
-            padding: 10px 40px;
-            display: flex;
+            padding: 15px 40px;
+            display: none;
             justify-content: space-between;
             align-items: center;
             z-index: 1000;
             box-sizing: border-box;
         }
 
+        .navbar.show {
+            display: flex;
+        }
+
         .navbar-title {
-            font-size: 2.5rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
         .navbar-auth {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
-        }
-
-        #lobby-screen {
-            padding-top: 400px;
+            flex-wrap: wrap;
         }
 
         .screen {
             width: 100%;
             height: 100%;
-            display: none; /* All screens hidden by default */
+            height: calc(100dvh - env(safe-area-inset-bottom));
+            display: none; 
             flex-direction: column;
             justify-content: center;
             align-items: center;
@@ -76,35 +84,49 @@
             display: flex;
         }
 
-        /* Lobby Screen Styles */
+        
         #lobby-screen {
             flex-direction: row;
             justify-content: center;
-            align-items: center;
-            gap: 100px; /* Space between news and elevator */
+            align-items: flex-start; 
+            gap: 100px;
             position: relative;
-            padding-top: 180px; /* Increased padding to create space below the title */
+            padding-top: 120px; /* Space for fixed navbar */
+            padding-bottom: 50px; /* Bottom padding */
+            min-height: 100vh; /* Ensure full height */
+            overflow-y: auto; /* Allow vertical scrolling */
             box-sizing: border-box;
+            padding-bottom: calc(50px + env(safe-area-inset-bottom)); 
         }
+
         .site-title {
             position: absolute;
-            top: 40px; 
+            top: 20px; /* Reduced from 40px */
             left: 50%;
-            font-size: 10rem;
+            transform: translateX(-50%);
+            font-size: 4rem; /* Reduced from 10rem */
             font-weight: 700;
-            letter-spacing: 5px;
+            letter-spacing: 2px; /* Reduced from 5px */
         }
         #lobby-screen .news-board {
             border: 2px solid #fff;
             padding: 20px 40px;
             background-color: #000;
             width: 600px;
-            height: 480px; /* Adjusted height to prevent overlap */
+            height: 480px; /* Fixed height */
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
         }
-        #lobby-screen h1 { font-size: 2.5rem; margin-bottom: 10px; text-align: center; flex-shrink: 0; }
+        .lobby-buttons {
+            position: static; /* Changed from absolute */
+            display: flex;
+            flex-direction: row; /* Changed to row for mobile */
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
         .news-content {
             overflow-y: auto; /* Make content scrollable */
             padding-right: 20px; /* For scrollbar spacing */
@@ -118,7 +140,7 @@
         #lobby-screen p, #lobby-screen ul { line-height: 1.6; font-size: 1rem; }
         #lobby-screen ul { padding-left: 20px; list-style-type: none; }
         #lobby-screen li { margin-bottom: 10px; }
-        #lobby-screen .lobby-footer { margin-top: 30px; font-size: 1.2rem; }
+        #lobby-screen .lobby-footer { font-size: 1.2rem; }
         .lobby-buttons {
             position: absolute;
             top: 40px;
@@ -128,7 +150,7 @@
             gap: 15px;
         }
         .lobby-btn {
-            border: 2px solid #fff;
+            border: 2px solid #fff; /* Ensure 2px border */
             background: #000;
             color: #fff;
             padding: 10px 20px;
@@ -140,6 +162,12 @@
             min-width: 160px;
             text-align: center;
         }
+
+        #clear-data-btn {
+            background: #500;
+            border: 2px solid #fff; /* Ensure 2px border */
+        }
+
 
         /* Elevator Screen Styles */
         #elevator-screen { gap: 50px; flex-direction: column; }
@@ -172,7 +200,7 @@
         }
         .unit { border: 2px solid #fff; width: 500px; height: 500px; flex-shrink: 0; padding: 20px; box-sizing: border-box; position: relative; display: flex; flex-direction: column; }
         .unit.my-unit.green-outline { border-color: #0f0; box-shadow: 0 0 15px #0f0; }
-        .unit.vacant { justify-content: center; align-items: center; font-size: 3rem; }
+        .unit.vacant { font-size: 3rem; }
         .unit-header { display: flex; justify-content: space-between; font-size: 1.2rem; flex-shrink: 0; }
         .unit-content {
             flex-grow: 1;
@@ -206,10 +234,45 @@
             text-align: center;
             width: 100%;
         }
-        .unit .edit-button { display: none; position: absolute; bottom: 20px; right: 20px; border: 2px solid #fff; background: #000; color: #fff; padding: 10px 20px; cursor: pointer; }
-        .unit.my-unit:hover .edit-button { display: block; }
-        .elevator-section { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-        .elevator-door { width: 200px; height: 500px; border: 2px solid #fff; display: flex; justify-content: center; align-items: center; }
+        
+        .unit .edit-button {
+            display: block; /* Always show for own units */
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            border: 2px solid #fff;
+            background: #000;
+            color: #fff;
+            padding: 10px 20px;
+            cursor: pointer;
+            z-index: 20; /* Ensure it stays on top */
+        }
+
+        .unit.my-unit .unit-content {
+            padding: 20px 10px 70px 10px; /* Increased bottom padding from 50px to 70px */
+            margin-bottom: 0; 
+        }
+
+        .unit.my-unit:hover .edit-button {
+            display: block; 
+        }
+
+        .elevator-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+            height: 500px;
+        }
+
+        .elevator-door {
+            width: 200px;
+            height: 500px;
+            border: 2px solid #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
         .elevator-door::before, .elevator-door::after { content: ''; position: absolute; width: 2px; height: 500px; background: #fff; }
         .elevator-call-panel { display: flex; flex-direction: column; gap: 15px; border: 2px solid #fff; padding: 15px; }
         .call-button { width: 50px; height: 50px; font-size: 1.5rem; border: 2px solid #fff; background: #000; color: #fff; cursor: pointer; }
@@ -334,6 +397,23 @@
             padding: 10px 20px;
         }
 
+        .lobby-footer-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #555;
+        }
+
+        .lobby-footer {
+            margin: 0;
+            font-size: 1.2rem;
+                align-items: center;
+
+        }
+
+
         /* Modal Styles */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); justify-content: flex-start; align-items: center; overflow-y: auto; }
         .modal-content { background-color: #000; padding: 30px; border: 2px solid #fff; width: 90%; max-width: 500px; text-align: center; margin-top: 5vh; margin-bottom: 5vh; }
@@ -354,19 +434,7 @@
         #move-out-btn { background: #500; color: #fff;}
 
         /* Mobile Responsive Styles */
-        @media (max-width: 768px) {
-            .site-title { font-size: 1.8rem; }
-            #lobby-screen { flex-direction: column; gap: 30px; padding-top: 120px; }
-            #lobby-screen .news-board { width: 90%; height: 300px; }
-            
-            .elevator-main-panel { flex-direction: column; }
-            .elevator-panel { grid-template-columns: repeat(5, 1fr); max-width: 100%; }
-            .elevator-side-controls { flex-direction: row; height: auto; width: 100%; justify-content: space-around; }
-
-            .unit { width: 300px; height: 300px; }
-            .elevator-door { width: 100px; height: 300px; }
-            .elevator-door::before, .elevator-door::after { height: 300px; }
-        }
+    
 
         .store-item.selected {
             background-color: #333;
@@ -433,25 +501,137 @@
         }
 
         .user-info-display {
-            border: 2px solid #0f0;
-            background: #000;
+            border: 2px solid #fff; /* Changed from #0f0 to white by default */
+            background: #333;
             padding: 10px 20px;
             text-align: center;
             font-size: 1rem;
             margin: 5px 0;
             min-width: 160px;
             box-sizing: border-box;
+            font-family: "Poor Story", system-ui; /* Match other buttons */
+            font-weight: 400;
+            text-transform: uppercase;
         }
 
-        .user-unit {
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 5px;
+        .user-info-display.green-outline {
+            border-color: #0f0;
+            box-shadow: 0 0 15px #0f0;
         }
+
+        
 
         .user-days {
             font-size: 0.9rem;
             color: #aaa;
+        }
+
+        .store-item.selected {
+            background-color: #333;
+            border: 2px solid #0f0;
+        }
+
+        .store-purchase-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 20px;
+            align-items: center;
+            background: #000;
+            padding: 15px 30px;
+            border: 2px solid #fff;
+        }
+
+        .total-price {
+            font-size: 1.5rem;
+            padding: 10px 20px;
+            border: 2px solid #fff;
+            background: #000;
+        }
+
+        .purchase-all-btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border: 2px solid #0f0;
+            background: #0f0;
+            color: #000;
+            cursor: pointer;
+            font-family: "Poor Story", system-ui;
+            text-transform: uppercase;
+        }
+
+        .free-unlock {
+            background: #0f0 !important;
+            color: #000 !important;
+            border-color: #0f0 !important;
+        }
+
+        .unlocks-text {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: #0f0;
+        }
+
+        .unit-light {
+            position: absolute;
+            top: -2px; 
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        .unit-light svg {
+            stroke-width: 2px;
+            vertical-align: top;
+        }
+
+        .unit.lit-unit {
+            background-color: #333333;
+        }
+
+        .unit.lit-unit .unit-light svg {
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
+
+        
+
+        @media (max-width: 768px) {
+            #lobby-screen { 
+                flex-direction: column;
+                gap: 30px;
+                padding-top: 100px;
+                align-items: center;
+            }
+            
+            #lobby-screen .news-board { 
+                width: 90%; 
+                height: 400px;
+            }
+            
+            .navbar {
+                padding: 10px 20px;
+            }
+            
+            .navbar-title {
+                font-size: 1.5rem;
+            }
+            
+            .navbar-auth {
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            
+            .lobby-btn, .user-info-display {
+                padding: 8px 15px;
+                min-width: 120px;
+                font-size: 0.9rem;
+            }
+
+            .elevator-main-panel { flex-direction: column; }
+            .elevator-panel { grid-template-columns: repeat(5, 1fr); max-width: 100%; }
+            .elevator-side-controls { flex-direction: row; height: auto; width: 100%; justify-content: space-around; }
         }
 
     </style>
@@ -463,10 +643,12 @@
             <div class="navbar-auth">
                 <button class="lobby-btn" id="sign-in-btn">Sign In with Google</button>
                 <div class="user-info-display" id="user-info-display" style="display: none;">
-                    <div class="user-unit">Unit #<span id="user-unit-number">000</span></div>
-                    <div class="user-days">Day <span id="user-days-count">0</span></div>
+                    Unit #<span id="user-unit-number">000</span>
+                     / Day <span id="user-days-count">0</span>
                 </div>
                 <button class="lobby-btn" id="sign-out-btn" style="display:none;">Sign Out</button>
+                <button class="lobby-btn" id="demo-data-btn">Create Demo Data</button>
+                <button class="lobby-btn" id="clear-data-btn" style="background: #500;">Clear All Data</button>
             </div>
         </nav>
 
@@ -476,9 +658,8 @@
                  <div class="elevator-door"></div>
                 <div class="elevator-call-panel">
                     <button class="call-button" id="lobby-call-elevator-btn" data-tooltip="Call Elevator">▲</button>
-                    <button class="call-button" id="lobby-call-home-btn" data-tooltip="Go to Your Unit">H</button>
+                    <button class="call-button call-home-btn" id="lobby-call-home-btn" data-tooltip="Go to Your Unit" style="display: none;">H</button>
                     <div class="home-unit-display" id="home-unit-display" style="display: none;">
-                        <div style="font-size: 0.8rem; text-align: center; margin-top: 10px; color: #aaa;">YOUR UNIT</div>
                         <div style="font-size: 1.2rem; text-align: center;">#000</div>
                     </div>
                 </div>
@@ -488,7 +669,6 @@
                 <div class="news-content">
                     <h2>Welcome to 227 Parking Ave!</h2>
 
-                    <p class="lobby-footer">Total Residents: <span id="total-residents">0</span></p>
                     <p>A minimalist, social apartment. Find your unit, settle in, and get to know your neighbors.</p>
                     <ul>
                         <li>Rules of the Complex:</li>
@@ -502,10 +682,36 @@
                     <p><strong>Notice:</strong> Scheduled maintenance on the main servers will occur this Sunday at 3 AM. Expect brief interruptions.</p>
                     <p><strong>Community Event:</strong> Join us for a virtual meet-and-greet on the roof deck (feature coming soon) next Friday!</p>
                 </div>
-                <div class="store-button-container">
+                <div class="lobby-footer-controls">
+                    <p class="lobby-footer">Total Residents: <span id="total-residents">0</span></p>
                     <button class="lobby-btn" id="store-btn">Store</button>
                 </div>
             </div>
+        </div>
+
+        <div id="elevator-screen" class="screen">
+             <h1 id="elevator-header">ELEVATOR</h1>
+             <div class="elevator-top-indicator" id="elevator-floor-display">3</div>
+             <div class="elevator-main-panel">
+                <div class="elevator-panel" id="elevator-panel"></div>
+                <div class="elevator-side-controls">
+                    <button class="side-button" id="random-floor-btn">R</button>
+                    <button class="side-button" id="floor-page-up" disabled>▲</button>
+                    <button class="side-button call-home-btn" id="home-floor-btn-elevator">H</button>
+                    <button class="side-button" id="floor-page-down" disabled>▼</button>
+                </div>
+            </div>
+        </div>
+        <div id="floor-screen" class="screen">
+            <div class="travel-indicator" id="travel-indicator"></div>
+            <div class="floor-hallway" id="floor-hallway"></div>
+        </div>
+        <div id="upstairs-screen" class="screen">
+             <div id="upstairs-unit-container"></div>
+             <div class="go-back-control" id="go-back-home-btn">
+                 <span>CLICK DOWN TO GO BACK</span>
+                 <div class="arrow"></div>
+             </div>
         </div>
 
     <!-- Store Screen -->
@@ -556,10 +762,17 @@
     </div>
 
     <script>
+            // Hide demo buttons in production
+            document.getElementById('demo-data-btn').style.display = 'none';
+            document.getElementById('clear-data-btn').style.display = 'none';
+
+
         // --- Simulated User and Tenant Data ---
         let MY_UNIT_ID = null; //308;
         const MAX_FLOORS = 5;
         let MY_HOME_FLOOR = null; // Math.floor(MY_UNIT_ID / 100);
+        let selectedUpgrades = [];
+
 
         const daysAgo = (days) => {
             const date = new Date();
@@ -567,26 +780,109 @@
             return date.toISOString();
         };
 
-        // This would eventually come from a database
-        let tenants = [
-            { userId: 'user1', unitId: 308, moveInDate: daysAgo(64), content: "BEEN HERE A COUPLE OF MONTHS. IT'S QUIET. I LIKE IT.", imageUrl: null, purchasedUpgrades: [] },
-            { userId: 'user2', unitId: 201, moveInDate: daysAgo(120), content: "ORIGINAL TENANT.", imageUrl: null, purchasedUpgrades: ['outline-green'] },
-            { userId: 'user3', unitId: 202, moveInDate: daysAgo(5), content: "JUST MOVED IN!", imageUrl: null, purchasedUpgrades: [] },
-            { userId: 'user4', unitId: 204, moveInDate: daysAgo(18), content: "my god", imageUrl: null, purchasedUpgrades: [] },
-            { userId: 'user5', unitId: 205, moveInDate: daysAgo(80), content: "what do I need", imageUrl: null, purchasedUpgrades: [] },
-            { userId: 'user6', unitId: 206, moveInDate: daysAgo(201), content: "we are finally here", imageUrl: null, purchasedUpgrades: [] },
-            { userId: 'user7', unitId: 207, moveInDate: daysAgo(864), content: "everyone welcome!", imageUrl: null, purchasedUpgrades: [] },
-            { userId: 'user8', unitId: 208, moveInDate: daysAgo(900), content: "Make your self at home", imageUrl: null, purchasedUpgrades: [] },
-        ];
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyCIfUQLCobl2OSHYpOXkysk37dxZGl62iM",
+          authDomain: "parkingave.firebaseapp.com",
+          projectId: "parkingave",
+          storageBucket: "parkingave.firebasestorage.app",
+          messagingSenderId: "648031542086",
+          appId: "1:648031542086:web:82566031526be74d366347"
+        };
 
-        const upgrades = [
-            { id: 'outline-green', name: 'Green Unit Outline', description: 'Change your unit outline to green.', daysToUnlock: 7, price: 0.99 },
-            { id: 'emoji-pack-1', name: 'Basic Emojis', description: 'Unlock basic emoji support.', daysToUnlock: 14, price: 0.99 },
-            { id: 'char-100', name: 'Expanded Vocabulary', description: 'Increase character limit to 100.', daysToUnlock: 63, price: 0.99 }, // Unlocks after 9 weeks
-            { id: 'char-200', name: 'Freedom of Speech', description: 'Increase character limit to 200.', daysToUnlock: 126, price: 0.99 }, // Unlocks after 18 weeks
-            { id: 'image-bw', name: 'B&W Photos', description: 'Upload pixelated B&W photos.', daysToUnlock: 133, price: 0.99, requires: 'char-200' }, // Unlocks 1 week after char-200
-            { id: 'image-color', name: 'Color Photos', description: 'Upload pixelated color photos.', daysToUnlock: 180, price: 0.99, requires: 'image-bw' }
-        ];
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        async function loadTenants() {
+            try {
+                console.log('Loading tenants from Firebase...');
+                const snapshot = await db.collection('tenants').get();
+                tenants = [];
+                snapshot.forEach(doc => {
+                    tenants.push({ id: doc.id, ...doc.data() });
+                });
+                renderLobby();
+                console.log('Loaded tenants:', tenants.length);
+            } catch (error) {
+                console.error('Error loading tenants:', error);
+            }
+        }
+
+        // Save tenant to Firebase
+        async function saveTenant(tenant) {
+            try {
+                if (tenant.id) {
+                    await db.collection('tenants').doc(tenant.id).update({
+                        content: tenant.content,
+                        imageUrl: tenant.imageUrl,
+                        purchasedUpgrades: tenant.purchasedUpgrades,
+                        lastActiveDate: tenant.lastActiveDate,
+                        // Add any other fields that might change
+                    });
+                } else {
+                    // Create new tenant
+                    const docRef = await db.collection('tenants').add(tenant);
+                    tenant.id = docRef.id;
+                }
+                console.log('Tenant saved successfully');
+            } catch (error) {
+                console.error('Error saving tenant:', error);
+            }
+        }
+
+        // Update tenant content
+        async function updateTenantContent(unitId, content, imageUrl = null) {
+            try {
+                const tenant = tenants.find(t => t.unitId === unitId);
+                if (tenant) {
+                    tenant.content = content;
+                    if (imageUrl !== null) {
+                        tenant.imageUrl = imageUrl;
+                    }
+                    await saveTenant(tenant);
+                }
+            } catch (error) {
+                console.error('Error updating tenant:', error);
+            }
+        }
+
+        // Delete tenant (move out)
+        async function deleteTenant(userId) {
+            try {
+                const tenant = tenants.find(t => t.userId === userId);
+                if (tenant && tenant.id) {
+                    await db.collection('tenants').doc(tenant.id).delete();
+                    tenants = tenants.filter(t => t.userId !== userId);
+                    console.log('Tenant deleted successfully');
+                }
+            } catch (error) {
+                console.error('Error deleting tenant:', error);
+            }
+        }
+
+        let upgrades = [];
+
+        async function loadUpgrades() {
+            try {
+                const snapshot = await db.collection('config').get();
+                upgrades = [];
+                
+                snapshot.forEach(doc => {
+                    const upgradeData = doc.data();
+                    // Add the document ID as the upgrade ID
+                    upgradeData.id = doc.id;
+                    upgrades.push(upgradeData);
+                });
+                
+                console.log('Loaded upgrades:', upgrades);
+            } catch (error) {
+                console.error('Failed to load upgrades:', error);
+                // Fallback to empty array or basic config
+                upgrades = [];
+            }
+        }
 
 
         // --- State Management & DOM Elements ---
@@ -626,7 +922,7 @@
         const signOutBtn = document.getElementById('sign-out-btn');
         const storeBtn = document.getElementById('store-btn');
         const storeItemsContainer = document.getElementById('store-items-container');
-        const backToLobbyBtn = document.getElementById('back-to-lobby-btn');
+        const backToLobbyBtn = document.getElementById('back-to-lobby-btn'); 
 
         
         // --- Core Logic & Functions ---
@@ -635,8 +931,12 @@
             screens.forEach(screen => {
                 screen.classList.toggle('active', screen.id === `${viewName}-screen`);
             });
+
+            const navbar = document.querySelector('.navbar');
+            if (navbar) {
+                navbar.classList.toggle('show', viewName === 'lobby');
+            }
             
-            // ADD THIS: Refresh lobby data when returning to lobby
             if (viewName === 'lobby') {
                 renderLobby();
             }
@@ -713,17 +1013,21 @@
             const userInfoDisplay = document.getElementById('user-info-display');
             if (signedInUser && userInfoDisplay) {
                 userInfoDisplay.style.display = 'block';
+                lobbyCallHomeBtn.style.display = 'block';
                 document.getElementById('user-unit-number').textContent = MY_UNIT_ID;
                 document.getElementById('user-days-count').textContent = getDaysStayed(signedInUser.moveInDate);
-            } else if (userInfoDisplay) {
-                userInfoDisplay.style.display = 'none';
+            } else {
+                if (userInfoDisplay) userInfoDisplay.style.display = 'none';
+                lobbyCallHomeBtn.style.display = 'none';
             }
         }
 
         // --- View Rendering & Animation ---
         function renderElevator() {
-            document.getElementById('random-floor-btn').setAttribute('data-tooltip', 'Random Floor');
-            document.getElementById('home-floor-btn-elevator').setAttribute('data-tooltip', 'Go Home');
+            const randomBtn = document.getElementById('random-floor-btn');
+            const homeBtn = document.getElementById('home-floor-btn-elevator');
+            if (randomBtn) randomBtn.setAttribute('data-tooltip', 'Random Floor');
+            if (homeBtn) homeBtn.setAttribute('data-tooltip', 'Go Home');
             elevatorFloorDisplay.textContent = (currentFloor === 1) ? 'L' : currentFloor;
             elevatorPanel.innerHTML = '';
             for (let i = 1; i <= 20; i++) {
@@ -735,7 +1039,7 @@
                 button.dataset.floor = i;
                 elevatorPanel.appendChild(button);
             }
-            homeFloorBtnElevator.disabled = !signedInUser;
+            homeFloorBtnElevator.disabled = !signedInUser || currentFloor === MY_HOME_FLOOR;
             homeFloorBtnElevator.classList.toggle('home-disabled', !signedInUser || currentFloor === MY_HOME_FLOOR);
         }
 
@@ -743,7 +1047,31 @@
             const tenant = tenants.find(t => t.unitId === unitId);
             let homeLabel = (signedInUser && unitId === MY_UNIT_ID) ? ' / HOME' : '';
 
-            if (!tenant) return `<div class="unit vacant">VACANT</div>`;
+            const isLit = tenant ? isUserActiveToday(tenant) : false;
+
+            if (tenant && unitId === MY_UNIT_ID) {
+                    console.log('DEBUG - My Unit:', unitId);
+                    console.log('DEBUG - Tenant:', tenant);
+                    console.log('DEBUG - lastActiveDate:', tenant.lastActiveDate);
+                    console.log('DEBUG - isLit:', isLit);
+                    console.log('DEBUG - Today:', new Date().toDateString());
+                }
+
+            const lightSVG = isLit ? getLitLightSVG() : getUnlitLightSVG();
+
+            if (!tenant) {
+                return `<div class="unit vacant">
+                    <div class="unit-light">${lightSVG}</div>
+                    <div class="unit-header">
+                        <span>UNIT # ${unitId}</span>
+                        <span>VACANT</span>
+                    </div>
+                    <div class="unit-content">
+                        <div class="unit-text">VACANT</div>
+                    </div>
+                </div>`;
+            }
+
 
             let upstairsArrowHTML = '';
             if (signedInUser && unitId === MY_UNIT_ID && !isUpstairsView) {
@@ -765,7 +1093,8 @@
 
 
             return `
-                <div class="unit ${homeLabel ? 'my-unit' : ''} ${outlineClass}">
+                <div class="unit ${homeLabel ? 'my-unit' : ''} ${outlineClass} ${isLit ? 'lit-unit' : ''}">
+                    <div class="unit-light">${lightSVG}</div>
                     ${upstairsArrowHTML}
                     <div class="unit-header">
                         <span>UNIT # ${unitId}${homeLabel}</span>
@@ -779,16 +1108,74 @@
                 </div>`;
         }
 
+        // When user signs in or takes any action
+        function updateUserActivity(tenant) {
+            const today = new Date().toDateString(); // "Mon Dec 09 2024"
+            tenant.lastActiveDate = today;
+            saveTenant(tenant);
+        }
+
+        // Check if user was active today
+        function isUserActiveToday(tenant) {
+            if (!tenant.lastActiveDate) return false;
+            const today = new Date().toDateString();
+            return tenant.lastActiveDate === today;
+        }
+
+        function checkMidnightReset() {
+            const now = new Date();
+            const estTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+            const hour = estTime.getHours();
+            const minute = estTime.getMinutes();
+            
+            // If it's midnight EST (00:00)
+            if (hour === 0 && minute === 0) {
+                // Re-render all views to update lights
+                if (currentView === 'floor') renderFloorView();
+                if (currentView === 'lobby') renderLobby();
+            }
+        }
+
+        setInterval(checkMidnightReset, 60000);
+
+        function getLitLightSVG() {
+            return `<svg width="60" height="30" viewBox="0 0 60 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Light fixture base - no top line, only sides and bottom -->
+                <line x1="11" y1="2" x2="11" y2="8" stroke="white" stroke-width="2"/>
+                <line x1="49" y1="2" x2="49" y2="8" stroke="white" stroke-width="2"/>
+                <line x1="10" y1="8" x2="50" y2="8" stroke="white" stroke-width="2"/>
+                <!-- Light bulb -->
+                <path d="M15 8 L45 8 C45 16 38 22 30 22 C22 22 15 16 15 8 Z" fill="white" stroke="white" stroke-width="2"/>
+            </svg>`;
+        }
+
+        function getUnlitLightSVG() {
+            return `<svg width="60" height="30" viewBox="0 0 60 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Light fixture base - no top line, only sides and bottom -->
+                <line x1="11" y1="2" x2="11" y2="8" stroke="white" stroke-width="2"/>
+                <line x1="49" y1="2" x2="49" y2="8" stroke="white" stroke-width="2"/>
+                <line x1="10" y1="8" x2="50" y2="8" stroke="white" stroke-width="2"/>
+                <!-- Smaller light bulb (outline only) -->
+                <path d="M15 8 L45 8 C45 16 38 22 30 22 C22 22 15 16 15 8 Z" fill="none" stroke="white" stroke-width="2"/>
+            </svg>`;
+        }
+
         function renderFloorView() {
             floorHallway.innerHTML = '';
             for (let i = 1; i <= 5; i++) { floorHallway.innerHTML += createUnitHTML(currentFloor * 100 + i); }
+
+            const upButtonHTML = currentFloor < MAX_FLOORS ? '<button class="call-button" id="call-up" data-tooltip="Go Up">▲</button>' : '';
+
+            const homeButtonHTML = signedInUser ? `<button class="call-button call-home-btn ${currentFloor === MY_HOME_FLOOR ? 'home-active' : ''}" id="call-home" data-tooltip="${currentFloor === MY_HOME_FLOOR ? 'You Are Home' : 'Go to Your Home Floor'}">H</button>` : '';
+
             floorHallway.innerHTML += `
                 <div class="elevator-section" id="elevator-section">
                     <div class="hallway-floor-display">${currentFloor}</div>
                     <div class="elevator-door"></div>
                     <div class="elevator-call-panel">
-                        <button class="call-button" id="call-up" data-tooltip="Go Up">▲</button>
-                        <button class="call-button ${signedInUser && currentFloor === MY_HOME_FLOOR ? 'home-active' : ''}" id="call-home" data-tooltip="Go Home">H</button>
+                        ${upButtonHTML}
+                        ${homeButtonHTML}
+
                         <button class="call-button" id="call-down" data-tooltip="Go Down">▼</button>
                     </div>
                 </div>`;
@@ -803,8 +1190,15 @@
                 
                 const allUnitContents = floorHallway.querySelectorAll('.unit-content');
                 allUnitContents.forEach(content => {
+                    const unit = content.closest('.unit');
+                    const isMyUnit = unit.classList.contains('my-unit');
+                    
                     if (content.scrollHeight > content.clientHeight) {
                         content.style.justifyContent = 'flex-start';
+                        // For own units with scrollable content, ensure extra bottom padding
+                        if (isMyUnit) {
+                            content.style.paddingBottom = '80px'; // Extra space for edit button
+                        }
                     } else {
                         content.style.justifyContent = 'center';
                     }
@@ -812,7 +1206,7 @@
             }, 0);
         }
 
-        function handleGoogleSignIn(response) {
+        async function handleGoogleSignIn(response) {
             // Decode the JWT token to get user info
             const userInfo = JSON.parse(atob(response.credential.split('.')[1]));
             
@@ -824,7 +1218,7 @@
                 signedInUser = existingUser;
                 MY_UNIT_ID = signedInUser.unitId;
                 MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
-                currentFloor = MY_HOME_FLOOR;
+                await updateUserActivity(signedInUser);
             } else {
                 // New user - find vacant unit
                 const vacantUnit = findVacantUnit();
@@ -840,11 +1234,14 @@
                         imageUrl: null,
                         purchasedUpgrades: []
                     };
+
+                    // Save to Firebase
+                    await saveTenant(newTenant);
                     tenants.push(newTenant);
                     signedInUser = newTenant;
                     MY_UNIT_ID = signedInUser.unitId;
                     MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
-                    currentFloor = MY_HOME_FLOOR;
+                    await updateUserActivity(newTenant);
                 } else {
                     alert("Sorry, no vacant units available!");
                     return;
@@ -855,6 +1252,10 @@
             signOutBtn.style.display = 'block';
             lobbyCallHomeBtn.disabled = false;
             renderLobby();
+
+            if (currentView === 'floor') {
+                renderFloorView();
+            }
         }
 
         function initializeGoogleSignIn() {
@@ -894,28 +1295,39 @@
                 }
                 
                 let actionHTML = '';
+                let unlockStatusHTML = '';
+                
                 if (isPurchased) {
                     actionHTML = `<div class="unlocked-label">PURCHASED</div>`;
                 } else if (isUnlockedByTime && isPrereqMet) {
-                    actionHTML = `<button class="price-btn" data-upgradeid="${upgrade.id}">$${upgrade.price.toFixed(2)}</button>`;
+                    unlockStatusHTML = `<div class="unlocks-text">UNLOCKED - FREE</div>`;
+                    actionHTML = `<button class="price-btn free-unlock" data-upgradeid="${upgrade.id}">UNLOCK FREE</button>`;
                 } else if (!isPrereqMet) {
+                    daysLeft = upgrade.daysToUnlock - days;
+                    unlockStatusHTML = `<div class="unlocks-text">${daysLeft} days left to unlock</div>`;
                     const prereqUpgrade = upgrades.find(u => u.id === upgrade.requires);
                     actionHTML = `<div class="locked-label">REQUIRES: ${prereqUpgrade.name}</div>`;
                 } else {
                     const daysLeft = upgrade.daysToUnlock - days;
-                    actionHTML = `
-                        <div class="unlocks-text">${daysLeft} days left to unlock</div>
-                        <button class="price-btn" data-upgradeid="${upgrade.id}">$${upgrade.price.toFixed(2)}</button>
-                    `;
+                    unlockStatusHTML = `<div class="unlocks-text">${daysLeft} days left to unlock</div>`;
+                    actionHTML = `<button class="price-btn" data-upgradeid="${upgrade.id}">BUY NOW - $${upgrade.price.toFixed(2)}</button>`;
+
+                    //check if this is purchasable
+                    if (upgrade.purchasable) {
+                        actionHTML = `<button class="price-btn" data-upgradeid="${upgrade.id}">BUY NOW - $${upgrade.price.toFixed(2)}</button>`;
+                    } else {
+                        actionHTML = `<div class="locked-label">UNLOCK IN ${daysLeft} DAYS</div>`;
+                    }
                 }
 
                 storeItemsContainer.innerHTML += `
-                    <div class="store-item">
+                    <div class="store-item" data-upgradeid="${upgrade.id}">
                         <div class="item-info">
                             <h3>${upgrade.name}</h3>
                             <p>${upgrade.description}</p>
                         </div>
                         <div class="item-action">
+                            ${unlockStatusHTML}
                             ${actionHTML}
                         </div>
                     </div>
@@ -936,33 +1348,126 @@
             const direction = fromFloor < toFloor ? 1 : -1;
             const interval = setInterval(() => {
                 floor += direction;
-                travelIndicator.textContent = floor;
+                travelIndicator.textContent = floor === 1 ? 'L' : floor;
                 if (floor === toFloor) {
                     clearInterval(interval);
                     setTimeout(() => {
                         travelIndicator.classList.remove('visible');
-                        renderFloorView();
-                        floorHallway.style.opacity = '1';
+                        if (toFloor === 1) {
+                            
+                            switchView('lobby');
+                        } else {
+                            
+                            renderFloorView();
+                            floorHallway.style.opacity = '1';
+                        }
                     }, 300);
                 }
             }, 150);
         }
 
-        function simulateSignIn() {
-            const demoUser = tenants.find(t => t.userId === 'user1');
+        async function createDemoData() {
+            
+            const snapshot = await db.collection('tenants').where('userId', '==', 'demo1').get();
+            if (!snapshot.empty) {
+                console.log('Demo data already exists');
+                await loadTenants();
+                return;
+            }
+
+            console.log('Creating demo data...');
+            
+            const daysAgo = (days) => {
+                const date = new Date();
+                date.setDate(date.getDate() - days);
+                return date.toISOString();
+            };
+
+            const demoTenants = [
+                { userId: 'demo1', unitId: 308, moveInDate: daysAgo(64), content: "BEEN HERE A COUPLE OF MONTHS. IT'S QUIET. I LIKE IT.", imageUrl: null, purchasedUpgrades: [], name: 'Demo User', email: 'demo@example.com' },
+                { userId: 'demo2', unitId: 201, moveInDate: daysAgo(120), content: "ORIGINAL TENANT.", imageUrl: null, purchasedUpgrades: ['outline-green'], name: 'First Resident', email: 'first@example.com' },
+                { userId: 'demo3', unitId: 202, moveInDate: daysAgo(5), content: "JUST MOVED IN!", imageUrl: null, purchasedUpgrades: [], name: 'New Tenant', email: 'new@example.com' },
+                { userId: 'demo4', unitId: 204, moveInDate: daysAgo(18), content: "HELLO NEIGHBORS!", imageUrl: null, purchasedUpgrades: [], name: 'Friendly Person', email: 'friendly@example.com' },
+            ];
+
+            try {
+                for (const tenant of demoTenants) {
+                    await db.collection('tenants').add(tenant);
+                }
+                console.log('Demo data created successfully!');
+                await loadTenants(); // Reload the data
+            } catch (error) {
+                console.error('Error creating demo data:', error);
+            }
+        }
+
+        async function simulateSignIn() {
+
+            console.log('Attempting demo sign-in...');
+                
+            // Check if we have any tenants loaded
+            if (tenants.length === 0) {
+                console.log('No tenants found, creating demo data...');
+                await createDemoData();
+            }
+
+            let demoUser = tenants.find(t => t.userId === 'demo1');
+                
             if (demoUser) {
                 signedInUser = demoUser;
                 MY_UNIT_ID = signedInUser.unitId;
                 MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
-                currentFloor = MY_HOME_FLOOR;
                 signInBtn.style.display = 'none';
                 signOutBtn.style.display = 'block';
                 lobbyCallHomeBtn.disabled = false;
                 renderLobby();
                 alert('Demo sign-in successful! (Using demo account)');
+                console.log('Demo sign-in successful:', demoUser);
+                await updateUserActivity(signedInUser);
+            } else {
+                console.error('Demo user not found even after creating demo data');
+                alert('Demo sign-in failed - check console for errors');
+            }
+
+            if (currentView === 'floor') {
+                renderFloorView();
             }
         }
 
+        async function clearAllData() {
+            if (!confirm('Are you sure you want to delete ALL tenant data? This cannot be undone!')) {
+                return;
+            }
+            
+            try {
+                console.log('Deleting all tenant data...');
+                const snapshot = await db.collection('tenants').get();
+                
+                // Delete all documents
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                
+                // Clear local data
+                tenants = [];
+                signedInUser = null;
+                MY_UNIT_ID = null;
+                MY_HOME_FLOOR = null;
+                
+                // Reset UI
+                signInBtn.style.display = 'block';
+                signOutBtn.style.display = 'none';
+                renderLobby();
+                
+                alert('All data cleared successfully!');
+                console.log('All data cleared');
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                alert('Error clearing data: ' + error.message);
+            }
+        }
 
         function updatePurchaseControls() {
             const controls = document.getElementById('store-purchase-controls');
@@ -981,109 +1486,199 @@
             }, 0);
             
             totalPrice.textContent = `Total: $${total.toFixed(2)}`;
-            purchaseBtn.textContent = selectedUpgrades.length === 1 ? 'Purchase Item' : `Purchase ${selectedUpgrades.length} Items`;
+            purchaseBtn.textContent = selectedUpgrades.length === 1 ? 
+                'Purchase Item' : `Purchase ${selectedUpgrades.length} Items`;
         }
+
+        document.getElementById('purchase-all-btn').addEventListener('click', async () => {
+            if (signedInUser && selectedUpgrades.length > 0) {
+                // Add all selected upgrades
+                for (const upgradeId of selectedUpgrades) {
+                    await unlockUpgrade(upgradeId, false); // false = paid purchase
+                }
+                
+                // Clear selection
+                selectedUpgrades = [];
+                document.querySelectorAll('.store-item').forEach(item => item.classList.remove('selected'));
+                document.getElementById('store-purchase-controls').style.display = 'none';
+                
+                alert('All purchases completed successfully!');
+            }
+        });
+
+        document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
+
+        document.getElementById('demo-data-btn').addEventListener('click', async () => {
+            await createDemoData();
+            alert('Demo data created! Try signing in now.');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.call-home-btn')) {
+                        console.log('HOME BUTTON CLICKED - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'signedInUser:', !!signedInUser);
+                if (!signedInUser) return;
+                
+                // Don't animate if already on home floor
+                if (currentFloor === MY_HOME_FLOOR) {
+                    console.log('ALREADY HOME - no animation');
+                    return;
+                }
+                
+                const fromFloor = currentFloor;
+                currentFloor = MY_HOME_FLOOR;
+                animateFloorTravel(fromFloor, MY_HOME_FLOOR);
+            }
+        });
 
         // --- Event Listeners ---
         function setupEventListeners() {
-            signInBtn.addEventListener('click', () => {
-                if (typeof google !== 'undefined' && google.accounts) {
-                    google.accounts.id.initialize({
-                        client_id: '648031542086-ev3jvpjanmukht7ad6uutkmr5uceltlj.apps.googleusercontent.com',
-                        callback: handleGoogleSignIn
-                    });
-                    
-                    // This will show the account picker popup
-                    google.accounts.id.prompt();
-                } else {
-                    // Fallback for demo/testing
-                    simulateSignIn();
-                }
-            });
-
-
-            signOutBtn.addEventListener('click', () => {
-                signedInUser = null;
-                MY_UNIT_ID = null;
-                MY_HOME_FLOOR = null;
-                signInBtn.style.display = 'block';
-                signOutBtn.style.display = 'none';
-                lobbyCallHomeBtn.disabled = true;
-                renderLobby(); // This will hide the user info
-            });
-
-            storeBtn.addEventListener('click', () => {
-                if(signedInUser) {
-                    renderStore();
-                    switchView('store');
-                } else {
-                    alert("Please sign in to access the store.");
-                }
-            });
-
-            backToLobbyBtn.addEventListener('click', () => switchView('lobby'));
-
-            let selectedUpgrades = [];
-
-            storeItemsContainer.addEventListener('click', (e) => {
-                if (e.target.matches('.price-btn')) {
-                    const upgradeId = e.target.dataset.upgradeid;
-                    const storeItem = e.target.closest('.store-item');
-                    
-                    if (selectedUpgrades.includes(upgradeId)) {
-                        // Deselect
-                        selectedUpgrades = selectedUpgrades.filter(id => id !== upgradeId);
-                        storeItem.classList.remove('selected');
+            if (signInBtn) {
+                signInBtn.addEventListener('click', () => {
+                    if (window.location.protocol !== 'file:') {
+                        google.accounts.id.initialize({
+                            client_id: '648031542086-ev3jvpjanmukht7ad6uutkmr5uceltlj.apps.googleusercontent.com',
+                            callback: handleGoogleSignIn
+                        });
+                        
+                        // This will show the account picker popup
+                        google.accounts.id.prompt();
                     } else {
-                        // Select
-                        selectedUpgrades.push(upgradeId);
-                        storeItem.classList.add('selected');
-                    }
-                    
-                    updatePurchaseControls();
-                }
-            });
+                        console.log('BEFORE SIGN IN - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'MY_UNIT_ID:', MY_UNIT_ID);
+                        // Fallback for demo/testing
+                        simulateSignIn();
+                        console.log('AFTER SIGN IN - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'MY_UNIT_ID:', MY_UNIT_ID);
 
-            lobbyCallElevatorBtn.addEventListener('click', () => { currentFloor = 1; renderElevator(); switchView('elevator'); });
-            lobbyCallHomeBtn.addEventListener('click', () => {
-                if (!signedInUser) return;
-                const fromFloor = 1;
-                if (MY_HOME_FLOOR !== fromFloor) {
-                    currentFloor = MY_HOME_FLOOR;
-                    animateFloorTravel(fromFloor, MY_HOME_FLOOR);
-                } else {
-                     renderFloorView();
-                     switchView('floor');
-                }
-            });
-            elevatorPanel.addEventListener('click', (e) => {
-                if (e.target.matches('.floor-button:not(:disabled)')) {
+
+                    }
+                });
+            }
+
+            if (signOutBtn) {
+                signOutBtn.addEventListener('click', () => {
+                    signedInUser = null;
+                    MY_UNIT_ID = null;
+                    MY_HOME_FLOOR = null;
+                    signInBtn.style.display = 'block';
+                    signOutBtn.style.display = 'none';
+                    lobbyCallHomeBtn.disabled = true;
+                    renderLobby();
+                });
+            }
+
+            if (storeBtn) {
+                storeBtn.addEventListener('click', () => {
+                    if(signedInUser) {
+                        renderStore();
+                        switchView('store');
+                    } else {
+                        alert("Please sign in to access the store.");
+                    }
+                });
+            }
+
+            if (backToLobbyBtn) {
+                backToLobbyBtn.addEventListener('click', () => switchView('lobby'));
+            }
+
+            if (storeItemsContainer) {
+                storeItemsContainer.addEventListener('click', (e) => {
+                    if (e.target.matches('.price-btn')) {
+                        const upgradeId = e.target.dataset.upgradeid;
+                        const upgrade = upgrades.find(u => u.id === upgradeId);
+                        const storeItem = e.target.closest('.store-item');
+                        
+                        // Handle free unlocks immediately
+                        if (e.target.classList.contains('free-unlock')) {
+                            unlockUpgrade(upgradeId, true); // true = free unlock
+                            return;
+                        }
+
+                        // Check if this specific upgrade is purchasable
+                        if (!upgrade.purchasable) {
+                            alert('This upgrade can only be unlocked by waiting the required days.');
+                            return;
+                        }
+                        
+                        // Handle paid upgrades - add to cart
+                        if (selectedUpgrades.includes(upgradeId)) {
+                            // Deselect
+                            selectedUpgrades = selectedUpgrades.filter(id => id !== upgradeId);
+                            storeItem.classList.remove('selected');
+                        } else {
+                            // Select
+                            selectedUpgrades.push(upgradeId);
+                            storeItem.classList.add('selected');
+                        }
+                        
+                        updatePurchaseControls();
+                    }
+                });
+            }
+
+            if (lobbyCallElevatorBtn) {
+                lobbyCallElevatorBtn.addEventListener('click', () => { currentFloor = 1; renderElevator(); switchView('elevator'); });
+            }
+            
+            if (elevatorPanel) {
+                elevatorPanel.addEventListener('click', (e) => {
+                    if (e.target.matches('.floor-button:not(:disabled)')) {
+                        const fromFloor = currentFloor;
+                        const targetFloor = parseInt(e.target.dataset.floor);
+                        if (targetFloor === 1) {
+                            currentFloor = 1; // Set current floor to lobby
+                            animateFloorTravel(fromFloor, 1);
+                            setTimeout(() => {
+                                switchView('lobby');
+                            }, (Math.abs(fromFloor - 1) * 150) + 300); // Calculate animation duration
+                            return;  
+                        }
+                        currentFloor = targetFloor;
+                        if (targetFloor !== fromFloor) { animateFloorTravel(fromFloor, targetFloor); } 
+                        else { renderFloorView(); switchView('floor'); }
+                    }
+                });
+            }
+
+            if (randomFloorBtn) {
+                randomFloorBtn.addEventListener('click', () => {
                     const fromFloor = currentFloor;
-                    const targetFloor = parseInt(e.target.dataset.floor);
-                    if (targetFloor === 1) { switchView('lobby'); return; }
-                    currentFloor = targetFloor;
-                    if (targetFloor !== fromFloor) { animateFloorTravel(fromFloor, targetFloor); } 
-                    else { renderFloorView(); switchView('floor'); }
+                    const possibleFloors = Array.from({length: MAX_FLOORS - 1}, (_, i) => i + 2);
+                    const validFloors = possibleFloors.filter(floor => floor !== currentFloor);
+                    if (validFloors.length > 0) {
+                        const randomFloor = validFloors[Math.floor(Math.random() * validFloors.length)];
+                        currentFloor = randomFloor;
+                        animateFloorTravel(fromFloor, randomFloor);
+                    }
+                });
+            }
+
+            async function unlockUpgrade(upgradeId, isFree = false) {
+                if (!signedInUser.purchasedUpgrades.includes(upgradeId)) {
+                    signedInUser.purchasedUpgrades.push(upgradeId);
+                    
+                    // Save to Firebase
+                    try {
+                        await saveTenant(signedInUser);
+                        console.log(`Upgrade ${upgradeId} ${isFree ? 'unlocked for free' : 'purchased'}!`);
+                        
+                        // Refresh store display
+                        renderStore();
+                        
+                        // Clear selection if it was a purchase
+                        if (!isFree) {
+                            selectedUpgrades = selectedUpgrades.filter(id => id !== upgradeId);
+                            updatePurchaseControls();
+                        }
+                        
+                        alert(`${isFree ? 'Unlocked for free' : 'Purchased'}: ${upgrades.find(u => u.id === upgradeId).name}!`);
+                    } catch (error) {
+                        console.error('Error saving upgrade:', error);
+                        alert('Error saving upgrade. Please try again.');
+                    }
                 }
-            });
-            randomFloorBtn.addEventListener('click', () => {
-                const fromFloor = currentFloor;
-                const possibleFloors = Array.from({length: MAX_FLOORS - 1}, (_, i) => i + 2);
-                const validFloors = possibleFloors.filter(floor => floor !== currentFloor);
-                if (validFloors.length > 0) {
-                    const randomFloor = validFloors[Math.floor(Math.random() * validFloors.length)];
-                    currentFloor = randomFloor;
-                    animateFloorTravel(fromFloor, randomFloor);
-                }
-            });
-            homeFloorBtnElevator.addEventListener('click', () => {
-                 if (!signedInUser) return;
-                 const fromFloor = currentFloor;
-                 if (MY_HOME_FLOOR !== fromFloor) {
-                    currentFloor = MY_HOME_FLOOR;
-                    animateFloorTravel(fromFloor, MY_HOME_FLOOR);
-                }
-            });
+            }
+
+
             document.getElementById('floor-screen').addEventListener('wheel', (e) => {
                 const unitContent = e.target.closest('.unit-content');
                 if (unitContent && unitContent.scrollHeight > unitContent.clientHeight) {
@@ -1092,15 +1687,80 @@
                 e.preventDefault();
                 const hallway = floorHallway;
                 const currentLeft = parseFloat(hallway.style.left) || 0;
-                let newLeft = currentLeft - e.deltaY * 2.5;
+                
+                // Support both vertical wheel (deltaY) and horizontal wheel (deltaX)
+                const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+                let newLeft = currentLeft - delta * 2.5;
+                
                 const screenWidth = window.innerWidth;
                 const hallwayWidth = hallway.scrollWidth;
                 const maxLeft = 50; 
                 const minLeft = screenWidth - hallwayWidth - 50;
+                
                 if (newLeft > maxLeft) newLeft = maxLeft;
                 if (newLeft < minLeft) newLeft = minLeft;
+                
                 hallway.style.left = `${newLeft}px`;
             });
+
+            document.addEventListener('keydown', (e) => {
+                if (currentView !== 'floor') return;
+                
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    
+                    const hallway = floorHallway;
+                    const currentLeft = parseFloat(hallway.style.left) || 0;
+                    const unitWidth = 540; // 500px unit + 40px gap
+                    const direction = e.key === 'ArrowLeft' ? 1 : -1;
+                    let newLeft = currentLeft + (unitWidth * direction);
+                    
+                    const screenWidth = window.innerWidth;
+                    const hallwayWidth = hallway.scrollWidth;
+                    const maxLeft = 50;
+                    const minLeft = screenWidth - hallwayWidth - 50;
+                    
+                    if (newLeft > maxLeft) newLeft = maxLeft;
+                    if (newLeft < minLeft) newLeft = minLeft;
+                    
+                    hallway.style.transition = 'left 0.3s ease';
+                    hallway.style.left = `${newLeft}px`;
+                    
+                    // Remove transition after animation
+                    setTimeout(() => {
+                        hallway.style.transition = '';
+                    }, 300);
+                }
+            });
+
+            let touchStartX = 0;
+            let touchStartLeft = 0;
+
+            floorHallway.addEventListener('touchstart', (e) => {
+                if (currentView !== 'floor') return;
+                touchStartX = e.touches[0].clientX;
+                touchStartLeft = parseFloat(floorHallway.style.left) || 0;
+            });
+
+            floorHallway.addEventListener('touchmove', (e) => {
+                if (currentView !== 'floor') return;
+                e.preventDefault();
+                
+                const touchX = e.touches[0].clientX;
+                const deltaX = touchX - touchStartX;
+                let newLeft = touchStartLeft + deltaX;
+                
+                const screenWidth = window.innerWidth;
+                const hallwayWidth = floorHallway.scrollWidth;
+                const maxLeft = 50;
+                const minLeft = screenWidth - hallwayWidth - 50;
+                
+                if (newLeft > maxLeft) newLeft = maxLeft;
+                if (newLeft < minLeft) newLeft = minLeft;
+                
+                floorHallway.style.left = `${newLeft}px`;
+            });
+
             floorHallway.addEventListener('click', (e) => {
                 const callButton = e.target.closest('.call-button');
                 if (callButton) {
@@ -1147,6 +1807,7 @@
                     switchView('upstairs');
                 }
             });
+
             goBackHomeBtn.addEventListener('click', () => { switchView('floor'); });
             
             editTextArea.addEventListener('input', () => {
@@ -1200,6 +1861,12 @@
                         imagePreviewText.textContent = "Error processing image.";
                     }
                 }
+
+                tenant.content = newContent;
+                tenant.imageUrl = newImageUrl;
+
+                await saveTenant(tenant);
+
                 renderFloorView();
                 editModal.style.display = 'none';
                 editingUnitId = null;
@@ -1234,10 +1901,18 @@
 
         }
         // --- Initial Load ---
-        function init() {
-            renderLobby();
+        async function init() {
+            await loadTenants();
+            await loadUpgrades();
+            currentFloor = 1;
             setupEventListeners();
             switchView('lobby');
+
+            if (signedInUser) {
+                await updateUserActivity(signedInUser);
+                if (currentView === 'floor') renderFloorView();
+                if (currentView === 'lobby') renderLobby();
+            }
         }
         init();
     </script>

@@ -1847,7 +1847,9 @@
                 if (editingUnitId === null) return;
                 const tenant = tenants.find(t => t.unitId === editingUnitId);
                 if (!tenant) return;
-                tenant.content = editTextArea.value.toUpperCase();
+
+                let newContent = editTextArea.value.toUpperCase();
+                let newImageUrl = tenant.imageUrl;
                 
                 if (removeImage) {
                     tenant.imageUrl = null;
@@ -1873,6 +1875,7 @@
                 selectedFile = null;
                 removeImage = false;
             });
+            
             cancelEditBtn.addEventListener('click', () => { 
                 editModal.style.display = 'none'; 
                 editingUnitId = null;

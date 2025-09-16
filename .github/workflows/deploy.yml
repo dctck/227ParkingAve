@@ -3,15 +3,13 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -26,13 +24,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Replace Google Client ID
+      - name: Create config file
         run: |
-          if [ -n "${{ secrets.GOOGLE_CLIENT_ID }}" ]; then
-            sed -i 's/GOOGLE_CLIENT_ID_PLACEHOLDER/${{ secrets.GOOGLE_CLIENT_ID }}/g' index.html
-          else
-            echo "Warning: GOOGLE_CLIENT_ID secret not set"
-          fi
+          cat > config.js << 'EOF'
+          window.APP_CONFIG = {
+            googleClientId: '${{ secrets.GOOGLE_CLIENT_ID }}',
+            firebaseConfig: {
+              apiKey: "AIzaSyCIfUQLCobl2OSHYpOXkysk37dxZGl62iM",
+              authDomain: "parkingave.firebaseapp.com", 
+              projectId: "parkingave",
+              storageBucket: "parkingave.firebasestorage.app",
+              messagingSenderId: "648031542086",
+              appId: "1:648031542086:web:82566031526be74d366347"
+            }
+          };
+          EOF
           
       - name: Setup Pages
         uses: actions/configure-pages@v4

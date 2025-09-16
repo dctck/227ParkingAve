@@ -1109,18 +1109,10 @@
         }
 
         // When user signs in or takes any action
-        async function updateUserActivity(tenant) {
-            if (!tenant) return;
+        function updateUserActivity(tenant) {
             const today = new Date().toDateString(); // "Mon Dec 09 2024"
             tenant.lastActiveDate = today;
             saveTenant(tenant);
-
-            try {
-                await saveTenant(tenant);
-                console.log('Updated activity for:', tenant.unitId, 'Date:', today);
-            } catch (error) {
-                console.error('Failed to update activity:', error);
-            }
         }
 
         // Check if user was active today
@@ -1187,13 +1179,7 @@
                         <button class="call-button" id="call-down" data-tooltip="Go Down">▼</button>
                     </div>
                 </div>`;
-
             for (let i = 6; i <= 10; i++) { floorHallway.innerHTML += createUnitHTML(currentFloor * 100 + i); }
-
-            if (signedInUser) {
-                updateUserActivity(signedInUser);
-            }
-
             setTimeout(() => {
                 const elevator = document.getElementById('elevator-section');
                 if (elevator) {
@@ -1203,7 +1189,6 @@
                 }
                 
                 const allUnitContents = floorHallway.querySelectorAll('.unit-content');
-
                 allUnitContents.forEach(content => {
                     const unit = content.closest('.unit');
                     const isMyUnit = unit.classList.contains('my-unit');
@@ -1276,7 +1261,7 @@
         function initializeGoogleSignIn() {
             if (typeof google !== 'undefined' && google.accounts) {
                 google.accounts.id.initialize({
-                    client_id: '648031542086-9cu3vou44erks52vl5i4nvclcmupahok.apps.googleusercontent.com', 
+                    client_id: 'YOUR_ACTUAL_CLIENT_ID_HERE', // Replace with your real client ID
                     callback: handleGoogleSignIn,
                     auto_select: false, // This ensures account picker shows
                     cancel_on_tap_outside: false
@@ -1551,7 +1536,7 @@
                 signInBtn.addEventListener('click', () => {
                     if (window.location.protocol !== 'file:') {
                         google.accounts.id.initialize({
-                            client_id: '648031542086-9cu3vou44erks52vl5i4nvclcmupahok.apps.googleusercontent.com',
+                            client_id: '648031542086-ev3jvpjanmukht7ad6uutkmr5uceltlj.apps.googleusercontent.com',
                             callback: handleGoogleSignIn
                         });
                         
@@ -1890,7 +1875,7 @@
                 selectedFile = null;
                 removeImage = false;
             });
-
+            
             cancelEditBtn.addEventListener('click', () => { 
                 editModal.style.display = 'none'; 
                 editingUnitId = null;

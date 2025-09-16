@@ -786,6 +786,9 @@
             document.getElementById('demo-data-btn').style.display = 'none';
             document.getElementById('clear-data-btn').style.display = 'none';
 
+        window.addEventListener('load', () => {
+            initializeGoogleSignIn();
+        });
 
         // --- Simulated User and Tenant Data ---
         let MY_UNIT_ID = null; //308;
@@ -800,10 +803,16 @@
             return date.toISOString();
         };
 
-        window.addEventListener('load', () => {
-                initializeGoogleSignIn();
-            });
-        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyCIfUQLCobl2OSHYpOXkysk37dxZGl62iM",
+          authDomain: "parkingave.firebaseapp.com",
+          projectId: "parkingave",
+          storageBucket: "parkingave.firebasestorage.app",
+          messagingSenderId: "648031542086",
+          appId: "1:648031542086:web:82566031526be74d366347"
+        };
+
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();

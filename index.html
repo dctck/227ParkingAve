@@ -1600,25 +1600,43 @@
             if (signInBtn) {
                 signInBtn.addEventListener('click', () => {
                     const clientId = window.APP_CONFIG.googleClientId;
-                    if (window.location.protocol !== 'file:') {
-                        try {
-                            if (typeof google !== 'undefined' && google.accounts) {
-                                google.accounts.id.prompt();
-                            } else {
-                                throw new Error('Google Sign-In not loaded');
-                            }
-                        } catch (error) {
-                            console.error('Google Sign-In error:', error);
-                            console.log('Falling back to demo mode');
-                            simulateSignIn();
-                        }
-                    } else {
-                        console.log('BEFORE SIGN IN - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'MY_UNIT_ID:', MY_UNIT_ID);
-                        // Fallback for demo/testing
+                        
+                    if (!clientId || window.location.protocol === 'file:') {
+                        console.log('Using demo sign-in');
                         simulateSignIn();
-                        console.log('AFTER SIGN IN - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'MY_UNIT_ID:', MY_UNIT_ID);
+                        return;
+                    }
 
+                    // Show loading state
+                    const originalText = signInBtn.textContent;
+                    signInBtn.textContent = 'SIGNING IN...';
+                    signInBtn.disabled = true;
 
+                    try {
+                        if (typeof google !== 'undefined' && google.accounts) {
+                            // Try the new FedCM method first
+                            google.accounts.id.prompt((notification) => {
+                                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                                    // FedCM failed - try popup fallback
+                                    console.log('FedCM blocked, trying popup fallback');
+                                    tryPopupSignIn(originalText);
+                                }
+                            });
+
+                            // Add timeout in case nothing happens
+                            setTimeout(() => {
+                                if (signInBtn.disabled) {
+                                    console.log('Sign-in timeout, offering alternatives');
+                                    showSignInOptions(originalText);
+                                }
+                            }, 3000);
+
+                        } else {
+                            throw new Error('Google Sign-In not loaded');
+                        }
+                    } catch (error) {
+                        console.error('Google Sign-In error:', error);
+                        showSignInOptions(originalText);
                     }
                 });
             }
@@ -1748,6 +1766,59 @@
                 }
             }
 
+            function tryPopupSignIn(originalText) {
+                try {
+                    // Create a popup window for OAuth
+                    const popup = window.open(
+                        `https://accounts.google.com/oauth/authorize?client_id=${window.APP_CONFIG.googleClientId}&redirect_uri=${window.location.origin}&scope=openid%20email%20profile&response_type=code`,
+                        'google-signin',
+                        'width=500,height=600,scrollbars=yes,resizable=yes'
+                    );
+
+                    // Check if popup was blocked
+                    if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+                        throw new Error('Popup blocked');
+                    }
+
+                    // Reset button after popup attempt
+                    setTimeout(() => {
+                        signInBtn.textContent = originalText;
+                        signInBtn.disabled = false;
+                    }, 1000);
+
+                } catch (error) {
+                    console.error('Popup sign-in failed:', error);
+                    showSignInOptions(originalText);
+                }
+            }
+
+            function showSignInOptions(originalText) {
+                // Reset button
+                signInBtn.textContent = originalText;
+                signInBtn.disabled = false;
+
+                // Show user-friendly message with options
+                const message = `Sign-in was blocked by your browser. You can:
+
+            1. Click the 🔒 icon in your address bar and allow third-party sign-in
+            2. Try signing in from an incognito/private window
+            3. Use demo mode to explore the app
+
+            Would you like to try demo mode instead?`;
+
+                if (confirm(message)) {
+                    simulateSignIn();
+                } else {
+                    // Give them instructions
+                    alert(`To enable Google sign-in:
+                    
+            Chrome: Click 🔒 → Site settings → Third-party sign-in → Allow
+            Firefox: Settings → Privacy → Enhanced Tracking Protection → Custom → Allow sign-in
+            Safari: Settings → Privacy → Prevent cross-site tracking → Off
+
+            Or try an incognito/private window!`);
+                }
+            }
 
             document.getElementById('floor-screen').addEventListener('wheel', (e) => {
                 const unitContent = e.target.closest('.unit-content');

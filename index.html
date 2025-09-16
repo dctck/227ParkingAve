@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poor+Story&display=swap" rel="stylesheet">
 
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -1221,10 +1221,8 @@
             }, 0);
         }
 
-        async function handleGoogleSignIn(response) {
-            // Decode the JWT token to get user info
-            const userInfo = JSON.parse(atob(response.credential.split('.')[1]));
-            
+        async function handleGoogleSignIn(userInfo) {
+            //legacy google login
             // Check if user already exists
             let existingUser = tenants.find(t => t.userId === userInfo.sub);
             
@@ -1550,13 +1548,23 @@
             if (signInBtn) {
                 signInBtn.addEventListener('click', () => {
                     if (window.location.protocol !== 'file:') {
-                        google.accounts.id.initialize({
-                            client_id: 'PLACEHOLDER_CLIENT_ID',
-                            callback: handleGoogleSignIn
+                        gapi.load('auth2', () => {
+                            gapi.auth2.init({
+                                client_id: '648031542086-ev3jvpjanmukht7ad6uutkmr5uceltlj.apps.googleusercontent.com'
+                            }).then(() => {
+                                const authInstance = gapi.auth2.getAuthInstance();
+                                authInstance.signIn().then(googleUser => {
+                                    const profile = googleUser.getBasicProfile();
+                                    const userInfo = {
+                                        sub: profile.getId(),
+                                        name: profile.getName(),
+                                        email: profile.getEmail(),
+                                        picture: profile.getImageUrl()
+                                    };
+                                    handleGoogleSignInLegacy(userInfo);
+                                });
+                            });
                         });
-                        
-                        // This will show the account picker popup
-                        google.accounts.id.prompt();
                     } else {
                         console.log('BEFORE SIGN IN - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'MY_UNIT_ID:', MY_UNIT_ID);
                         // Fallback for demo/testing

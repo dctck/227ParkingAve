@@ -10,11 +10,28 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poor+Story&display=swap" rel="stylesheet">
 
-    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // Default config for local development
+        window.APP_CONFIG = window.APP_CONFIG || {
+            googleClientId: null, // Will use demo mode locally
+            firebaseConfig: {
+                apiKey: "AIzaSyCIfUQLCobl2OSHYpOXkysk37dxZGl62iM",
+                authDomain: "parkingave.firebaseapp.com",
+                projectId: "parkingave",
+                storageBucket: "parkingave.firebasestorage.app",
+                messagingSenderId: "648031542086",
+                appId: "1:648031542086:web:82566031526be74d366347"
+            }
+        };
+    </script>
+
+     <script src="config.js" onerror="console.log('Config file not found, using defaults')"></script>
 
 
     <style>
@@ -762,6 +779,9 @@
     </div>
 
     <script>
+
+
+
             // Hide demo buttons in production
             document.getElementById('demo-data-btn').style.display = 'none';
             document.getElementById('clear-data-btn').style.display = 'none';
@@ -780,16 +800,10 @@
             return date.toISOString();
         };
 
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-          apiKey: "AIzaSyCIfUQLCobl2OSHYpOXkysk37dxZGl62iM",
-          authDomain: "parkingave.firebaseapp.com",
-          projectId: "parkingave",
-          storageBucket: "parkingave.firebasestorage.app",
-          messagingSenderId: "648031542086",
-          appId: "1:648031542086:web:82566031526be74d366347"
-        };
-
+        window.addEventListener('load', () => {
+                initializeGoogleSignIn();
+            });
+        
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -1221,6 +1235,23 @@
             }, 0);
         }
 
+        async function handleGoogleSignIn(response) {
+            try {
+                const payload = JSON.parse(atob(response.credential.split('.')[1]));
+                const userInfo = {
+                    sub: payload.sub,
+                    name: payload.name,
+                    email: payload.email,
+                    picture: payload.picture
+                };
+                
+                await handleGoogleSignInLegacy(userInfo);
+            } catch (error) {
+                console.error('Error handling Google sign-in:', error);
+                alert('Sign-in failed. Please try again.');
+            }
+        }
+
         async function handleGoogleSignInLegacy(userInfo) {
             //legacy google login
             // Check if user already exists
@@ -1272,15 +1303,27 @@
         }
 
         function initializeGoogleSignIn() {
-            if (typeof google !== 'undefined' && google.accounts) {
-                google.accounts.id.initialize({
-                    client_id: 'GOOGLE_CLIENT_ID_PLACEHOLDER', 
-                    callback: handleGoogleSignIn,
-                    auto_select: false, // This ensures account picker shows
-                    cancel_on_tap_outside: false
-                });
+                const clientId = window.APP_CONFIG.googleClientId;
+                
+                if (!clientId || window.location.protocol === 'file:') {
+                    console.log('Google Sign-In not available - using demo mode');
+                    return;
+                }
+
+                if (typeof google !== 'undefined' && google.accounts) {
+                    try {
+                        google.accounts.id.initialize({
+                            client_id: clientId,
+                            callback: handleGoogleSignIn,
+                            auto_select: false,
+                            cancel_on_tap_outside: false
+                        });
+                        console.log('Google Sign-In initialized successfully');
+                    } catch (error) {
+                        console.error('Failed to initialize Google Sign-In:', error);
+                    }
+                }
             }
-        }
 
         function findVacantUnit() {
             for (let floor = 2; floor <= MAX_FLOORS; floor++) {
@@ -1547,24 +1590,19 @@
         function setupEventListeners() {
             if (signInBtn) {
                 signInBtn.addEventListener('click', () => {
+                    const clientId = window.APP_CONFIG.googleClientId;
                     if (window.location.protocol !== 'file:') {
-                        gapi.load('auth2', () => {
-                            gapi.auth2.init({
-                                client_id: 'GOOGLE_CLIENT_ID_PLACEHOLDER'
-                            }).then(() => {
-                                const authInstance = gapi.auth2.getAuthInstance();
-                                authInstance.signIn().then(googleUser => {
-                                    const profile = googleUser.getBasicProfile();
-                                    const userInfo = {
-                                        sub: profile.getId(),
-                                        name: profile.getName(),
-                                        email: profile.getEmail(),
-                                        picture: profile.getImageUrl()
-                                    };
-                                    handleGoogleSignInLegacy(userInfo);
-                                });
-                            });
-                        });
+                        try {
+                            if (typeof google !== 'undefined' && google.accounts) {
+                                google.accounts.id.prompt();
+                            } else {
+                                throw new Error('Google Sign-In not loaded');
+                            }
+                        } catch (error) {
+                            console.error('Google Sign-In error:', error);
+                            console.log('Falling back to demo mode');
+                            simulateSignIn();
+                        }
                     } else {
                         console.log('BEFORE SIGN IN - currentFloor:', currentFloor, 'MY_HOME_FLOOR:', MY_HOME_FLOOR, 'MY_UNIT_ID:', MY_UNIT_ID);
                         // Fallback for demo/testing

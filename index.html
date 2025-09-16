@@ -1221,7 +1221,7 @@
             }, 0);
         }
 
-        async function handleGoogleSignIn(userInfo) {
+        async function handleGoogleSignInLegacy(userInfo) {
             //legacy google login
             // Check if user already exists
             let existingUser = tenants.find(t => t.userId === userInfo.sub);

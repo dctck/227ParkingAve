@@ -1,28 +1,47 @@
 name: Deploy to GitHub Pages
+
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
     steps:
-      - uses: actions/checkout@v4  # Updated version
+      - name: Checkout
+        uses: actions/checkout@v4
       
       - name: Replace Google Client ID
         run: |
-          sed -i 's/GOOGLE_CLIENT_ID_PLACEHOLDER/${{ secrets.GOOGLE_CLIENT_ID }}/g' index.html
+          if [ -n "${{ secrets.GOOGLE_CLIENT_ID }}" ]; then
+            sed -i 's/GOOGLE_CLIENT_ID_PLACEHOLDER/${{ secrets.GOOGLE_CLIENT_ID }}/g' index.html
+          else
+            echo "Warning: GOOGLE_CLIENT_ID secret not set"
+          fi
           
       - name: Setup Pages
-        uses: actions/configure-pages@v3  # Updated version
+        uses: actions/configure-pages@v4
         
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2  # Updated version
+        uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
           
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v2  # Updated version
+        id: deployment
+        uses: actions/deploy-pages@v4

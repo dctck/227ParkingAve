@@ -1274,7 +1274,7 @@
         function initializeGoogleSignIn() {
             if (typeof google !== 'undefined' && google.accounts) {
                 google.accounts.id.initialize({
-                    client_id: 'PLACEHOLDER_CLIENT_ID', 
+                    client_id: 'GOOGLE_CLIENT_ID_PLACEHOLDER', 
                     callback: handleGoogleSignIn,
                     auto_select: false, // This ensures account picker shows
                     cancel_on_tap_outside: false
@@ -1550,7 +1550,7 @@
                     if (window.location.protocol !== 'file:') {
                         gapi.load('auth2', () => {
                             gapi.auth2.init({
-                                client_id: '648031542086-ev3jvpjanmukht7ad6uutkmr5uceltlj.apps.googleusercontent.com'
+                                client_id: 'GOOGLE_CLIENT_ID_PLACEHOLDER'
                             }).then(() => {
                                 const authInstance = gapi.auth2.getAuthInstance();
                                 authInstance.signIn().then(googleUser => {

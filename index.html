@@ -651,6 +651,75 @@
             .elevator-side-controls { flex-direction: row; height: auto; width: 100%; justify-content: space-around; }
         }
 
+        .lobby-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #333;
+        }
+
+        .lobby-btn.signing-in {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lobby-btn.signing-in::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* FedCM status indicator */
+        .fedcm-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border: 1px solid #555;
+            background: #000;
+            color: #aaa;
+            z-index: 1001;
+        }
+
+        .fedcm-status.supported {
+            color: #0f0;
+            border-color: #0f0;
+        }
+
+        .fedcm-status.blocked {
+            color: #f50;
+            border-color: #f50;
+        }
+
+        /* Privacy notice */
+        .privacy-notice {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.9);
+            border: 2px solid #555;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 90%;
+            display: none;
+        }
+
+        .privacy-notice.show {
+            display: block;
+        }
+
     </style>
 </head>
 <body>
@@ -778,6 +847,15 @@
         </div>
     </div>
 
+    <!-- FedCM Status Indicator (optional, for debugging) -->
+    <div id="fedcm-status" class="fedcm-status" style="display: none;"></div>
+
+    <!-- Privacy Notice (shows when needed) -->
+    <div id="privacy-notice" class="privacy-notice">
+        <p>🔒 This site uses secure sign-in that respects your privacy.</p>
+        <p>If sign-in is blocked, check your browser settings or try incognito mode.</p>
+    </div>
+
     <script>
 
 
@@ -786,9 +864,6 @@
             document.getElementById('demo-data-btn').style.display = 'none';
             document.getElementById('clear-data-btn').style.display = 'none';
 
-        window.addEventListener('load', () => {
-            initializeGoogleSignIn();
-        });
 
         // --- Simulated User and Tenant Data ---
         let MY_UNIT_ID = null; //308;
@@ -1244,9 +1319,223 @@
             }, 0);
         }
 
+        async function initializeFedCMSignIn() {
+            const clientId = window.APP_CONFIG.googleClientId;
+            
+            if (!clientId || window.location.protocol === 'file:') {
+                console.log('FedCM not available - using demo mode');
+                return;
+            }
+
+            // Check if FedCM is supported
+            if ('IdentityCredential' in window && 'navigator' in window && 'credentials' in navigator) {
+                console.log('FedCM API is supported');
+                setupFedCMSignIn(clientId);
+            } else {
+                console.log('FedCM not supported, falling back to legacy Google Sign-In');
+                setupLegacyGoogleSignIn(clientId);
+            }
+        }
+
+        function setupFedCMSignIn(clientId) {
+            // Modern FedCM approach
+            if (signInBtn) {
+                signInBtn.addEventListener('click', async () => {
+                    const originalText = signInBtn.textContent;
+                    signInBtn.textContent = 'SIGNING IN...';
+                    signInBtn.disabled = true;
+
+                    try {
+                        // Use FedCM API
+                        const credential = await navigator.credentials.get({
+                            identity: {
+                                providers: [{
+                                    configURL: 'https://accounts.google.com/.well-known/web-identity',
+                                    clientId: clientId,
+                                    nonce: generateNonce(), // Optional: add nonce for security
+                                }]
+                            }
+                        });
+
+                        if (credential) {
+                            // Parse the ID token
+                            const payload = JSON.parse(atob(credential.token.split('.')[1]));
+                            const userInfo = {
+                                sub: payload.sub,
+                                name: payload.name,
+                                email: payload.email,
+                                picture: payload.picture
+                            };
+                            
+                            await handleGoogleSignInLegacy(userInfo);
+                        } else {
+                            throw new Error('No credential received');
+                        }
+
+                    } catch (error) {
+                        console.error('FedCM sign-in failed:', error);
+                        
+                        // Check specific error types
+                        if (error.name === 'NetworkError') {
+                            showFedCMBlockedMessage(originalText);
+                        } else if (error.name === 'NotAllowedError') {
+                            showUserRejectedMessage(originalText);
+                        } else {
+                            // Generic fallback
+                            showSignInAlternatives(originalText);
+                        }
+                    }
+                });
+            }
+        }
+
+        function setupLegacyGoogleSignIn(clientId) {
+            // Fallback to traditional Google Sign-In
+            if (typeof google !== 'undefined' && google.accounts) {
+                google.accounts.id.initialize({
+                    client_id: clientId,
+                    callback: handleGoogleSignIn,
+                    auto_select: false,
+                    cancel_on_tap_outside: false
+                });
+                
+                if (signInBtn) {
+                    signInBtn.addEventListener('click', () => {
+                        const originalText = signInBtn.textContent;
+                        signInBtn.textContent = 'SIGNING IN...';
+                        signInBtn.disabled = true;
+
+                        try {
+                            google.accounts.id.prompt((notification) => {
+                                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                                    showSignInAlternatives(originalText);
+                                }
+                            });
+
+                            // Timeout protection
+                            setTimeout(() => {
+                                if (signInBtn.disabled) {
+                                    showSignInAlternatives(originalText);
+                                }
+                            }, 5000);
+
+                        } catch (error) {
+                            console.error('Legacy sign-in failed:', error);
+                            showSignInAlternatives(originalText);
+                        }
+                    });
+                }
+            }
+        }
+
+        function generateNonce() {
+            // Generate a random nonce for security
+            const array = new Uint8Array(16);
+            crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        function showFedCMBlockedMessage(originalText) {
+            resetSignInButton(originalText);
+            
+            const message = `🔒 Third-party sign-in is blocked in your browser.
+
+        This is due to new privacy protections. To sign in:
+
+        1. Click the 🔒 or ⓘ icon in your address bar
+        2. Look for "Third-party sign-in" or "Cookies" 
+        3. Click "Allow" for this site
+
+        OR try an incognito/private window!
+
+        Want to explore with demo mode instead?`;
+
+            if (confirm(message)) {
+                simulateSignIn();
+            }
+        }
+
+        function showUserRejectedMessage(originalText) {
+            resetSignInButton(originalText);
+            
+            alert(`Sign-in was cancelled. 
+
+        If you didn't mean to cancel, try clicking the sign-in button again.
+
+        You can also explore the app using demo mode!`);
+        }
+
+        function showSignInAlternatives(originalText) {
+            resetSignInButton(originalText);
+            
+            const message = `Having trouble signing in? 
+
+        This could be due to:
+        • Browser privacy settings blocking third-party sign-in
+        • Ad blockers interfering with authentication
+        • Network connectivity issues
+
+        Solutions:
+        1. Try an incognito/private browsing window
+        2. Temporarily disable ad blockers for this site
+        3. Check browser settings for third-party cookies/sign-in
+
+        Would you like to try demo mode to explore the app?`;
+
+            if (confirm(message)) {
+                simulateSignIn();
+            } else {
+                // Offer detailed help
+                showDetailedBrowserHelp();
+            }
+        }
+
+        function showDetailedBrowserHelp() {
+            const help = `📋 Browser-Specific Help:
+
+        🟦 CHROME:
+        • Click 🔒 next to URL → Site settings
+        • Set "Third-party sign-in" to Allow
+        • Set "Cookies" to Allow
+
+        🟧 FIREFOX: 
+        • Settings → Privacy & Security
+        • Enhanced Tracking Protection → Custom
+        • Uncheck "Sign-in" or add site exception
+
+        🟪 SAFARI:
+        • Settings → Privacy
+        • Uncheck "Prevent cross-site tracking"
+        • OR: Safari → Preferences → Privacy
+
+        🚀 QUICK FIX: Try incognito/private mode!`;
+
+            alert(help);
+        }
+
+        function resetSignInButton(originalText) {
+            if (signInBtn) {
+                signInBtn.textContent = originalText;
+                signInBtn.disabled = false;
+            }
+        }
+
+        // Update your existing handleGoogleSignIn function to handle both FedCM and legacy
         async function handleGoogleSignIn(response) {
             try {
-                const payload = JSON.parse(atob(response.credential.split('.')[1]));
+                let payload;
+                
+                // Handle both FedCM token and legacy credential response
+                if (typeof response === 'string') {
+                    // FedCM token
+                    payload = JSON.parse(atob(response.split('.')[1]));
+                } else if (response.credential) {
+                    // Legacy Google Sign-In
+                    payload = JSON.parse(atob(response.credential.split('.')[1]));
+                } else {
+                    throw new Error('Invalid response format');
+                }
+                
                 const userInfo = {
                     sub: payload.sub,
                     name: payload.name,
@@ -1255,84 +1544,40 @@
                 };
                 
                 await handleGoogleSignInLegacy(userInfo);
+                
             } catch (error) {
                 console.error('Error handling Google sign-in:', error);
-                alert('Sign-in failed. Please try again.');
+                resetSignInButton('Sign In with Google');
+                alert('Sign-in failed. Please try again or use demo mode.');
             }
         }
 
-        async function handleGoogleSignInLegacy(userInfo) {
-            //legacy google login
-            // Check if user already exists
-            let existingUser = tenants.find(t => t.userId === userInfo.sub);
-            
-            if (existingUser) {
-                // Existing user
-                signedInUser = existingUser;
-                MY_UNIT_ID = signedInUser.unitId;
-                MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
-                await updateUserActivity(signedInUser);
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            initializeFedCMSignIn();
+        });
+
+        // Test third-party cookie behavior (for development)
+        function testThirdPartyCookies() {
+            if (document.cookie.indexOf('SameSite=None') !== -1) {
+                console.log('✅ Third-party cookies appear to be working');
             } else {
-                // New user - find vacant unit
-                const vacantUnit = findVacantUnit();
-                if (vacantUnit) {
-                    const newTenant = {
-                        userId: userInfo.sub,
-                        name: userInfo.name,
-                        email: userInfo.email,
-                        picture: userInfo.picture,
-                        unitId: vacantUnit,
-                        moveInDate: new Date().toISOString(),
-                        content: "JUST MOVED IN!",
-                        imageUrl: null,
-                        purchasedUpgrades: []
-                    };
-
-                    // Save to Firebase
-                    await saveTenant(newTenant);
-                    tenants.push(newTenant);
-                    signedInUser = newTenant;
-                    MY_UNIT_ID = signedInUser.unitId;
-                    MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
-                    await updateUserActivity(newTenant);
-                } else {
-                    alert("Sorry, no vacant units available!");
-                    return;
-                }
+                console.log('⚠️  Third-party cookies may be blocked');
             }
             
-            signInBtn.style.display = 'none';
-            signOutBtn.style.display = 'block';
-            lobbyCallHomeBtn.disabled = false;
-            renderLobby();
-
-            if (currentView === 'floor') {
-                renderFloorView();
-            }
+            // Test if we can set a cross-origin cookie
+            document.cookie = "test-3p=1; SameSite=None; Secure";
+            
+            setTimeout(() => {
+                if (document.cookie.indexOf('test-3p=1') !== -1) {
+                    console.log('✅ Can set cross-origin cookies');
+                } else {
+                    console.log('❌ Cross-origin cookies are blocked');
+                }
+                // Clean up test cookie
+                document.cookie = "test-3p=; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=None; Secure";
+            }, 100);
         }
-
-        function initializeGoogleSignIn() {
-                const clientId = window.APP_CONFIG.googleClientId;
-                
-                if (!clientId || window.location.protocol === 'file:') {
-                    console.log('Google Sign-In not available - using demo mode');
-                    return;
-                }
-
-                if (typeof google !== 'undefined' && google.accounts) {
-                    try {
-                        google.accounts.id.initialize({
-                            client_id: clientId,
-                            callback: handleGoogleSignIn,
-                            auto_select: false,
-                            cancel_on_tap_outside: false
-                        });
-                        console.log('Google Sign-In initialized successfully');
-                    } catch (error) {
-                        console.error('Failed to initialize Google Sign-In:', error);
-                    }
-                }
-            }
 
         function findVacantUnit() {
             for (let floor = 2; floor <= MAX_FLOORS; floor++) {
@@ -2044,6 +2289,45 @@
             });
 
         }
+
+        function updateFedCMStatus() {
+            const statusEl = document.getElementById('fedcm-status');
+            if (!statusEl) return;
+
+            if ('IdentityCredential' in window) {
+                statusEl.textContent = '✅ FedCM Supported';
+                statusEl.className = 'fedcm-status supported';
+            } else {
+                statusEl.textContent = '⚠️ FedCM Not Available';
+                statusEl.className = 'fedcm-status blocked';
+            }
+            
+            // Show status in development only
+            if (window.location.hostname === 'localhost' || window.location.protocol === 'file:') {
+                statusEl.style.display = 'block';
+            }
+        }
+
+        // Test and show privacy notice if needed
+        function checkPrivacySettings() {
+            const notice = document.getElementById('privacy-notice');
+            
+            // Test if third-party resources are blocked
+            testThirdPartyCookies();
+            
+            // Show notice briefly on first load
+            setTimeout(() => {
+                notice.classList.add('show');
+                setTimeout(() => notice.classList.remove('show'), 5000);
+            }, 1000);
+        }
+
+        // Initialize status checking
+        window.addEventListener('load', () => {
+            updateFedCMStatus();
+            checkPrivacySettings();
+        });
+
         // --- Initial Load ---
         async function init() {
             await loadTenants();

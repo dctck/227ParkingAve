@@ -1320,38 +1320,32 @@
         }
 
         function initializeModernGoogleSignIn() {
-                const clientId = window.APP_CONFIG.googleClientId;
-                
-                if (!clientId || window.location.protocol === 'file:') {
-                    console.log('Using demo mode');
-                    return;
-                }
-
-                if (typeof google !== 'undefined' && google.accounts) {
-                    // Initialize Google Identity Services
-                    google.accounts.id.initialize({
-                        client_id: clientId,
-                        callback: handleCredentialResponse,
-                        auto_select: false,
-                        cancel_on_tap_outside: false,
-                        // Add these for better compatibility
-                        context: 'signin',
-                        ux_mode: 'popup',
-                        itp_support: true
-                    });
-                    
-                    console.log('✅ Google Identity Services initialized');
-                    
-                    // Also initialize the button if you want to use Google's styled button
-                    // google.accounts.id.renderButton(
-                    //     document.getElementById("google-signin-button"),
-                    //     { theme: "outline", size: "large" }
-                    // );
-                    
-                } else {
-                    console.error('Google Identity Services not loaded');
-                }
+            const clientId = window.APP_CONFIG.googleClientId;
+            
+            if (!clientId || window.location.protocol === 'file:') {
+                console.log('Google Sign-In not available - using demo mode');
+                return;
             }
+
+            if (typeof google !== 'undefined' && google.accounts) {
+                // Initialize Google Identity Services
+                google.accounts.id.initialize({
+                    client_id: clientId,
+                    callback: handleCredentialResponse, // This is correct
+                    auto_select: false,
+                    cancel_on_tap_outside: false,
+                    // Add these for better compatibility
+                    context: 'signin',
+                    ux_mode: 'popup',
+                    itp_support: true
+                });
+                
+                console.log('✅ Google Identity Services initialized');
+                
+            } else {
+                console.error('Google Identity Services not loaded');
+            }
+        }
 
             // Handle the credential response from Google Identity Services
             function handleCredentialResponse(response) {
@@ -1367,11 +1361,23 @@
                     };
                     
                     console.log('✅ Google sign-in successful:', userInfo.email);
-                    handleGoogleSignInLegacy(userInfo);
+                    
+                    // FIX: Call the correct function name
+                    handleGoogleSignIn(userInfo); 
                     
                 } catch (error) {
                     console.error('❌ Error processing Google credential:', error);
                     showSignInError('Failed to process sign-in credential');
+                }
+            }
+
+            async function handleGoogleSignIn(userInfo) {
+                try {
+                    // This should call your existing handleGoogleSignInLegacy function
+                    await handleGoogleSignInLegacy(userInfo);
+                } catch (error) {
+                    console.error('Error in handleGoogleSignIn:', error);
+                    showSignInError('Sign-in processing failed');
                 }
             }
 
@@ -1395,7 +1401,7 @@
 
                     try {
                         if (typeof google !== 'undefined' && google.accounts) {
-                            // Prompt for sign-in
+                            // Prompt for sign-in with better error handling
                             google.accounts.id.prompt((notification) => {
                                 console.log('Prompt notification:', notification);
                                 
@@ -1403,15 +1409,16 @@
                                 signInBtn.textContent = originalText;
                                 signInBtn.disabled = false;
                                 
+                                // Handle different notification types
                                 if (notification.isNotDisplayed()) {
-                                    console.log('Sign-in prompt not displayed');
+                                    console.log('Sign-in prompt not displayed - likely blocked');
                                     showSignInAlternatives();
                                 } else if (notification.isSkippedMoment()) {
-                                    console.log('Sign-in prompt was skipped');
+                                    console.log('Sign-in prompt was skipped - trying alternatives');
                                     showSignInAlternatives();
                                 } else if (notification.isDismissedMoment()) {
                                     console.log('Sign-in prompt was dismissed by user');
-                                    // User actively dismissed, don't show error
+                                    alert('Sign-in was cancelled. Please try again when ready.');
                                 }
                             });
                         } else {
@@ -1426,48 +1433,114 @@
                 });
             }
 
-            function showSignInError(message) {
-                const signInBtn = document.getElementById('sign-in-btn');
-                if (signInBtn) {
-                    signInBtn.textContent = 'Sign In with Google';
-                    signInBtn.disabled = false;
-                }
-                
-                console.error('Sign-in error:', message);
-                
-                const userMessage = `Sign-in failed: ${message}
+            async function handleGoogleSignInLegacy(userInfo) {
+                try {
+                    // Check if user already exists
+                    let existingUser = tenants.find(t => t.userId === userInfo.sub);
+                    
+                    if (existingUser) {
+                        // Existing user
+                        signedInUser = existingUser;
+                        MY_UNIT_ID = signedInUser.unitId;
+                        MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
+                        await updateUserActivity(signedInUser);
+                    } else {
+                        // New user - find vacant unit
+                        const vacantUnit = findVacantUnit();
+                        if (vacantUnit) {
+                            const newTenant = {
+                                userId: userInfo.sub,
+                                name: userInfo.name,
+                                email: userInfo.email,
+                                picture: userInfo.picture,
+                                unitId: vacantUnit,
+                                moveInDate: new Date().toISOString(),
+                                content: "JUST MOVED IN!",
+                                imageUrl: null,
+                                purchasedUpgrades: [],
+                                lastActiveDate: new Date().toDateString()
+                            };
 
-        Would you like to try demo mode instead?`;
-                
-                if (confirm(userMessage)) {
-                    simulateSignIn();
+                            // Save to Firebase
+                            await saveTenant(newTenant);
+                            tenants.push(newTenant);
+                            signedInUser = newTenant;
+                            MY_UNIT_ID = signedInUser.unitId;
+                            MY_HOME_FLOOR = Math.floor(MY_UNIT_ID / 100);
+                            await updateUserActivity(newTenant);
+                        } else {
+                            alert("Sorry, no vacant units available!");
+                            return;
+                        }
+                    }
+                    
+                    // Update UI
+                    signInBtn.style.display = 'none';
+                    signOutBtn.style.display = 'block';
+                    lobbyCallHomeBtn.disabled = false;
+                    renderLobby();
+
+                    if (currentView === 'floor') {
+                        renderFloorView();
+                    }
+                    
+                    console.log('Sign-in completed successfully');
+                    
+                } catch (error) {
+                    console.error('Error in handleGoogleSignInLegacy:', error);
+                    alert('Sign-in failed. Please try again or use demo mode.');
                 }
+            }
+
+            function showSignInError(message) {
+                //const signInBtn = document.getElementById('sign-in-btn');
+                //if (signInBtn) {
+                //    signInBtn.textContent = 'Sign In with Google';
+                //    signInBtn.disabled = false;
+                //}
+                
+                //console.error('Sign-in error:', message);
+                
+                //const userMessage = `Sign-in failed: ${message}
+
+        //Would you like to try demo mode instead?`;
+                
+        //        if (confirm(userMessage)) {
+        //            simulateSignIn();
+        //        }
+
+                alert(`Sign-in failed: ${message}\n\nPlease check your internet connection and try again.`);
             }
 
             function showSignInAlternatives() {
                 const message = `Sign-in was blocked or unavailable.
 
-        This could be due to:
-        • Browser privacy settings
-        • Ad blockers
-        • Third-party sign-in restrictions
+                This could be due to:
+                • Browser privacy settings
+                • Ad blockers
+                • Third-party sign-in restrictions
 
-        Solutions:
-        1. Try an incognito/private window
-        2. Check browser settings for third-party sign-in
-        3. Temporarily disable ad blockers
+                Solutions:
+                1. Try an incognito/private window
+                2. Check browser settings for third-party sign-in
+                3. Temporarily disable ad blockers
 
-        Would you like to try demo mode?`;
+                If problems persist, please contact support.`; 
 
-                if (confirm(message)) {
-                    simulateSignIn();
-                }
+                alert(message);
             }
 
             // Initialize when page loads
             window.addEventListener('load', () => {
                 initializeModernGoogleSignIn();
                 setupModernSignInButton();
+
+                try {
+                    updateFedCMStatus();
+                    checkPrivacySettings();
+                } catch (error) {
+                    console.log('Privacy status check failed:', error);
+                }
             });
 
         function findVacantUnit() {
@@ -1886,6 +1959,27 @@
                 }
             }
 
+            function testThirdPartyCookies() {
+                if (document.cookie.indexOf('SameSite=None') !== -1) {
+                    console.log('✅ Third-party cookies appear to be working');
+                } else {
+                    console.log('⚠️  Third-party cookies may be blocked');
+                }
+                
+                // Test if we can set a cross-origin cookie
+                document.cookie = "test-3p=1; SameSite=None; Secure";
+                
+                setTimeout(() => {
+                    if (document.cookie.indexOf('test-3p=1') !== -1) {
+                        console.log('✅ Can set cross-origin cookies');
+                    } else {
+                        console.log('❌ Cross-origin cookies are blocked');
+                    }
+                    // Clean up test cookie
+                    document.cookie = "test-3p=; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=None; Secure";
+                }, 100);
+            }
+
             function showSignInOptions(originalText) {
                 // Reset button
                 signInBtn.textContent = originalText;
@@ -1894,25 +1988,14 @@
                 // Show user-friendly message with options
                 const message = `Sign-in was blocked by your browser. You can:
 
-            1. Click the 🔒 icon in your address bar and allow third-party sign-in
-            2. Try signing in from an incognito/private window
-            3. Use demo mode to explore the app
+                1. Click the 🔒 icon in your address bar and allow third-party sign-in
+                2. Try signing in from an incognito/private window
+                3. Use demo mode to explore the app
 
-            Would you like to try demo mode instead?`;
-
-                if (confirm(message)) {
-                    simulateSignIn();
-                } else {
-                    // Give them instructions
-                    alert(`To enable Google sign-in:
-                    
-            Chrome: Click 🔒 → Site settings → Third-party sign-in → Allow
-            Firefox: Settings → Privacy → Enhanced Tracking Protection → Custom → Allow sign-in
-            Safari: Settings → Privacy → Prevent cross-site tracking → Off
-
-            Or try an incognito/private window!`);
-                }
+                Please try the solutions above or contact support.`;
+                alert(message);
             }
+            
 
             document.getElementById('floor-screen').addEventListener('wheel', (e) => {
                 const unitContent = e.target.closest('.unit-content');
